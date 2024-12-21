@@ -1,0 +1,17 @@
+database:
+    migrate: false
+    address: ""
+    user: ""
+    password: ""
+    name: "lancer-db"
+use-redis: false
+redis: ""
+store:
+  local:
+    path: "/store"
+    temp-path: "/temp"
+  aws:
+    store: false
+    clientId: ""
+    clientSecret: ""
+    bucket: ""
