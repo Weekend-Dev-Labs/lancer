@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/weekend-dev-labs/lancer/api"
+	"github.com/weekend-dev-labs/lancer/cache"
 	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/db"
 )
@@ -34,5 +35,11 @@ func main() {
 
 	query := db.New(conn)
 
-	api.StartServer(cfg, query)
+	redisCache := cache.NewCache(cfg.Redis)
+
+	if redisCache == nil {
+		log.Printf("[LANCER WARNING] Redis Server Configuration Missing. Using Database to store sessions.")
+	}
+
+	api.StartServer(cfg, query, redisCache)
 }

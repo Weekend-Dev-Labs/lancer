@@ -24,6 +24,16 @@ func openDB(databaseUrl string) *sql.DB {
 	return db
 }
 
+func countMigrations() int {
+	files, err := migrationFiles.ReadDir("migrations")
+
+	if err != nil {
+		log.Fatalf("[Lancer Error] Unable to read migrations folder: %v", err)
+	}
+
+	return len(files)
+}
+
 func RunMigration(databaseUrl string) {
 	source, err := iofs.New(migrationFiles, "migrations")
 

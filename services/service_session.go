@@ -9,13 +9,14 @@ import (
 )
 
 func (s *Services) serviceCreateSession(c echo.Context) error {
-
-	// _, _ := c.Get(string(types.ContextAuthInfo)).(*authInfo)
-
 	payload := new(types.CreateSessionPayload)
 
 	if err := utils.GetValidatedPayload(c, payload); err != nil {
 		return err
+	}
+
+	if s.cfg.Redis != "" {
+		// session := s.
 	}
 
 	return c.JSON(http.StatusOK, payload)
