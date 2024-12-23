@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/weekend-dev-labs/lancer/types"
+	"github.com/weekend-dev-labs/lancer/utils"
 )
 
 func (s *Services) serviceCreateSession(c echo.Context) error {
@@ -13,11 +14,7 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 
 	payload := new(types.CreateSessionPayload)
 
-	if err := c.Bind(payload); err != nil {
-		return echo.NewHTTPError(http.StatusUnprocessableEntity, "invalid payload")
-	}
-
-	if err := c.Validate(payload); err != nil {
+	if err := utils.GetValidatedPayload(c, payload); err != nil {
 		return err
 	}
 

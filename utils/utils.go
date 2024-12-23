@@ -1,15 +1,18 @@
 package utils
 
 import (
-	"github.com/go-playground/validator/v10"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 )
 
-type LancerValidator struct {
-	validator *validator.Validate
-}
-func (lv *LancerValidator) Validate(i interface{}) error {
-	if err := lv.validator.Struct(i); err != nil {
-		return echo.
+func GetValidatedPayload(c echo.Context, payload interface{}) error {
+	if err := c.Bind(payload); err != nil {
+		return echo.NewHTTPError(http.StatusUnprocessableEntity, "invalid payload")
 	}
+
+	if err := c.Validate(payload); err != nil {
+		return echo.NewHTTPError(http.StatusUnprocessableEntity, "invalid payload")
+	}
+	return nil
 }
