@@ -43,11 +43,11 @@ func ParseFlags() *LancerConfig {
 
 	// Redis Args
 	flag.BoolVar(&cfg.UseRedis, "redis", false, "Whether to use redis or not.")
-	flag.StringVar(&cfg.Redis, "redis-addr", "localhost:6379", "Sets the address for redis.")
+	flag.StringVar(&cfg.Redis, "redis-addr", "", "Sets the address for redis.")
 
 	// Store Args
-	flag.StringVar(&cfg.Store.Local.Path, "store-local-path", "/store", "Sets the path to store the media files locally.")
-	flag.StringVar(&cfg.Store.Local.Temp, "store-local-temp", "/temp", "Sets the path to store the media files temporariliy")
+	flag.StringVar(&cfg.Store.Local.Path, "store-local-path", "store", "Sets the path to store the media files locally.")
+	flag.StringVar(&cfg.Store.Local.Temp, "store-local-temp", "temp", "Sets the path to store the media files temporariliy")
 	flag.StringVar(&cfg.AuthEndpoint, "auth-endpoint", "", "Sets the path for authentication")
 
 	flag.Parse()

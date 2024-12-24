@@ -12,14 +12,19 @@ type Services struct {
 	db         *db.Queries
 	cfg        *config.LancerConfig
 	redisCache *cache.Cache
+	tasks      *TaskManager
 }
 
 func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache) {
+
+	taskManager := NewTaskManager()
+
 	services := Services{
 		e:          e,
 		db:         db,
-		cfg:        cfg,
+		cfg:        cfg, 
 		redisCache: redisCache,
+		tasks:      taskManager,
 	}
 
 	// registering the services
