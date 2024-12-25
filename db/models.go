@@ -16,6 +16,5 @@ type Session struct {
 	FileName  pgtype.Text
 	TempPath  pgtype.Text
 	OwnerID   pgtype.Text
-	IsActive  pgtype.Bool
 	CreatedAt pgtype.Timestamp
 }

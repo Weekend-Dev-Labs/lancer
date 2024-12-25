@@ -7,7 +7,6 @@ CREATE TABLE
         file_name TEXT,
         temp_path TEXT,
         owner_id TEXT,
-        is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 

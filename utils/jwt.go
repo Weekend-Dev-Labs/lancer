@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/golang-jwt/jwt/v5"
+import (
+	"fmt"
+
+	"github.com/golang-jwt/jwt/v5"
+)
 
 type SessionClaims struct {
 	SessionID string `json:"session_id"`
@@ -17,4 +21,22 @@ func GetSessionToken(claims *SessionClaims, key string) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+func GetSessionInfo(token string, key string) (*SessionClaims, error) {
+	var claims SessionClaims
+
+	withClaims, err := jwt.ParseWithClaims(token, &claims, func(t *jwt.Token) (interface{}, error) {
+		return []byte(key), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !withClaims.Valid {
+		return nil, fmt.Errorf("invalid session token")
+	}
+
+	return &claims, nil
 }

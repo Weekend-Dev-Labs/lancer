@@ -13,6 +13,10 @@ type CreateSessionPayload struct {
 	FileName  string `json:"file_name" validate:"required"`
 }
 
+type SessionTokenPayload struct {
+	SessionToken string `json:"session_token" validate:"required"`
+}
+
 type SessionInfo struct {
 	FileSize     int64  `json:"file_size"`
 	ChunkSize    int64  `json:"chunk_size"`

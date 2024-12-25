@@ -65,3 +65,7 @@ SELECT file_name, COUNT(*) AS duplicate_count
 FROM sessions
 GROUP BY file_name
 HAVING COUNT(*) > 1;
+
+-- name: FindSessionById :one
+SELECT * FROM sessions
+WHERE id = $1;

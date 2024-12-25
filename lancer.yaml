@@ -1,15 +1,15 @@
 database:
     migrate: false
-    address: ""
-    user: ""
-    password: ""
-    name: "lancer-db"
+    address: "localhost:5432"
+    user: "postgres"
+    password: "qwertyuiop"
+    name: "lancer"
 use-redis: false
 redis: ""
 store:
   local:
-    path: "/store"
-    temp-path: "/temp"
+    path: "store"
+    temp-path: "temp"
   aws:
     store: false
     clientId: ""

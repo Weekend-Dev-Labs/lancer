@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 )
@@ -16,6 +17,10 @@ func NewTaskManager() *TaskManager {
 	return &TaskManager{
 		tasks: make(map[string]context.CancelFunc),
 	}
+}
+
+func BaseTask(folder_path string, ctx context.Context) error {
+	return os.RemoveAll(folder_path)
 }
 
 func (tm *TaskManager) AddTask(id string, duration time.Duration, task func(ctx context.Context)) {
