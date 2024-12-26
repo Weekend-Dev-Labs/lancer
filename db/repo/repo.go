@@ -1,0 +1,102 @@
+package repo
+
+import (
+	"context"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/weekend-dev-labs/lancer/cache"
+	"github.com/weekend-dev-labs/lancer/config"
+	"github.com/weekend-dev-labs/lancer/db"
+	"github.com/weekend-dev-labs/lancer/types"
+)
+
+type Repo struct {
+	db         *db.Queries
+	redisCache *cache.Cache
+	config     *config.LancerConfig
+}
+
+type SessionCreateAck struct {
+	ID       string
+	TempPath string
+}
+
+func NewRepo(db *db.Queries, redisCache *cache.Cache, config *config.LancerConfig) *Repo {
+	return &Repo{
+		db:         db,
+		redisCache: redisCache,
+		config:     config,
+	}
+}
+
+func (r *Repo) getTempPath(id string, filename string) string {
+	return r.config.Store.Local.Temp + "/" + id + filename
+}
+
+func (r *Repo) CreateSession(session *types.SessionInfo) (*SessionCreateAck, error) {
+	sessionKey := uuid.New().String()
+
+	tempPath := r.getTempPath(sessionKey, session.FileName)
+
+	sessionWithPath := &types.SessionInfo{
+		FileSize:     session.FileSize,
+		ChunkSize:    session.ChunkSize,
+		MaxChunk:     session.MaxChunk,
+		FileName:     session.FileName,
+		TempPath:     tempPath,
+		OwnerID:      session.OwnerID,
+		CurrentChunk: 0,
+	}
+
+	if r.config.Redis != "" {
+		_, err := r.redisCache.CreateSession(sessionKey, sessionWithPath)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return &SessionCreateAck{
+			ID:       sessionKey,
+			TempPath: tempPath,
+		}, nil
+	}
+
+	dbSessionData := db.CreateSessionParams{
+		FileSize:  session.FileSize,
+		ChunkSize: session.ChunkSize,
+		MaxChunk:  session.MaxChunk,
+		FileName: pgtype.Text{
+			String: session.FileName,
+			Valid:  true,
+		},
+		OwnerID: pgtype.Text{
+			String: session.OwnerID,
+			Valid:  true,
+		},
+	}
+
+	ack, err := r.db.CreateSession(context.TODO(), dbSessionData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tempPath = r.getTempPath(ack.ID.String(), ack.FileName.String)
+
+	if err := r.db.UpdateSession(context.TODO(), db.UpdateSessionParams{
+		FileName: ack.FileName,
+		TempPath: pgtype.Text{
+			String: r.getTempPath(ack.ID.String(), ack.FileName.String),
+			Valid:  true,
+		},
+		ID: ack.ID,
+	}); err != nil {
+		return nil, nil
+	}
+
+	return &SessionCreateAck{
+		ID:       ack.ID.String(),
+		TempPath: tempPath,
+	}, nil
+}

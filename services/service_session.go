@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
-	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
 	"github.com/weekend-dev-labs/lancer/utils"
 )
@@ -25,62 +24,23 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		return err
 	}
 
-	var sessionKey string
+	session, err := s.repo.CreateSession(&types.SessionInfo{
+		FileSize:     payload.FileSize,
+		ChunkSize:    payload.ChunkSize,
+		MaxChunk:     payload.MaxChunk,
+		FileName:     payload.FileName,
+		OwnerID:      authInfo.ID,
+		CurrentChunk: 0,
+	})
 
-	sessionKey = uuid.New().String()
-
-	if s.cfg.Redis != "" {
-		_, err := s.redisCache.CreateSession(sessionKey, &types.SessionInfo{
-			FileSize:  payload.FileSize,
-			ChunkSize: payload.ChunkSize,
-			MaxChunk:  payload.MaxChunk,
-			FileName:  payload.FileName,
-			OwnerID:   authInfo.ID,
-			TempPath:  sessionKey + "/" + payload.FileName,
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
 		})
-
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": err.Error(),
-			})
-		}
-	} else {
-		ack, err := s.db.CreateSession(context.TODO(), db.CreateSessionParams{
-			FileSize:  payload.FileSize,
-			ChunkSize: payload.ChunkSize,
-			MaxChunk:  payload.MaxChunk,
-			FileName: pgtype.Text{
-				String: payload.FileName,
-				Valid:  true,
-			},
-			OwnerID: pgtype.Text{
-				String: authInfo.ID,
-				Valid:  true,
-			},
-		})
-
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": err.Error(),
-			})
-		}
-
-		if err := s.db.UpdateSession(context.TODO(), db.UpdateSessionParams{
-			FileName: ack.FileName,
-			TempPath: pgtype.Text{
-				String: s.cfg.Store.Local.Temp + "/" + ack.ID.String() + payload.FileName,
-				Valid:  true,
-			},
-			ID: ack.ID,
-		}); err != nil {
-			return err
-		}
-
-		sessionKey = ack.ID.String()
 	}
 
 	sessionToken, err := utils.GetSessionToken(&utils.SessionClaims{
-		SessionID: sessionKey,
+		SessionID: session.ID,
 	}, "secret key")
 
 	if err != nil {
@@ -89,12 +49,12 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		})
 	}
 
-	dirPath := s.cfg.Store.Local.Temp + "/" + sessionKey + payload.FileName
+	dirPath := session.TempPath
 	if err := os.MkdirAll(dirPath, os.ModeDir); err != nil {
 		return err
 	}
 
-	s.tasks.AddTask(sessionKey, time.Duration(time.Second*30), func(ctx context.Context) {
+	s.tasks.AddTask(session.ID, time.Duration(time.Second*30), func(ctx context.Context) {
 		if err := os.RemoveAll(dirPath); err != nil {
 			fmt.Printf(err.Error())
 		}

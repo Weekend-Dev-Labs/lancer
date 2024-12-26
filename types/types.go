@@ -3,7 +3,8 @@ package types
 type ContextKeys string
 
 const (
-	ContextAuthInfo = ContextKeys("auth-info")
+	ContextAuthInfo    = ContextKeys("auth-info")
+	ContextSessionInfo = ContextKeys("session-info")
 )
 
 type CreateSessionPayload struct {
@@ -25,4 +26,9 @@ type SessionInfo struct {
 	TempPath     string `json:"temp_path"`
 	OwnerID      string `json:"owner_id"`
 	CurrentChunk int64  `json:"current_chunk"`
+}
+
+type UploaderChunkPayload struct {
+	ChunkCount int64  `validate:"required"`
+	Checksum   string `validate:"required"`
 }

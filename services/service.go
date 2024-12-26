@@ -5,6 +5,7 @@ import (
 	"github.com/weekend-dev-labs/lancer/cache"
 	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/db"
+	"github.com/weekend-dev-labs/lancer/db/repo"
 )
 
 type Services struct {
@@ -13,20 +14,23 @@ type Services struct {
 	cfg        *config.LancerConfig
 	redisCache *cache.Cache
 	tasks      *TaskManager
+	repo       *repo.Repo
 }
 
-func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache) {
+func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo) {
 
 	taskManager := NewTaskManager()
 
 	services := Services{
 		e:          e,
 		db:         db,
-		cfg:        cfg, 
+		cfg:        cfg,
 		redisCache: redisCache,
 		tasks:      taskManager,
+		repo:       repo,
 	}
 
 	// registering the services
 	services.registerSessionServicer()
+	services.registerUploaderService()
 }
