@@ -6,16 +6,20 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/weekend-dev-labs/lancer/db/repo"
 )
 
 type TaskManager struct {
 	mu    sync.Mutex
 	tasks map[string]context.CancelFunc
+	repo  *repo.Repo
 }
 
-func NewTaskManager() *TaskManager {
+func NewTaskManager(repo *repo.Repo) *TaskManager {
 	return &TaskManager{
 		tasks: make(map[string]context.CancelFunc),
+		repo:  repo,
 	}
 }
 
@@ -61,6 +65,7 @@ func (tm *TaskManager) CancelTask(id string) {
 
 	if cancel, exists := tm.tasks[id]; exists {
 		cancel()
+		tm.repo.DeleteSession(id)
 		delete(tm.tasks, id)
 	}
 }

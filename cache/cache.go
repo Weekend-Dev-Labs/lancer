@@ -70,3 +70,7 @@ func (c *Cache) GetSessionInfo(session_id string) (*types.SessionInfo, error) {
 
 	return &sessionInfo, nil
 }
+
+func (c *Cache) RemoveSession(session_id string) {
+	c.Client.Del(context.TODO(), session_id)
+}

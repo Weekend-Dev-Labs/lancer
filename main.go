@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/jackc/pgx/v5"
@@ -19,6 +20,8 @@ func main() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 
 	cfg := config.ParseFlags()
+
+	fmt.Println(cfg.Database.Migrate)
 
 	if cfg.Database.Migrate {
 		db.RunMigration(cfg.GetDatabaseConnectionString())

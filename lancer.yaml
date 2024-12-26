@@ -3,7 +3,7 @@ database:
     address: "localhost:5432"
     user: "postgres"
     password: "qwertyuiop"
-    name: "lancer"
+    name: "lancer-main"
 use-redis: false
 redis: ""
 store:

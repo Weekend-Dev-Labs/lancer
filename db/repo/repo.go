@@ -100,3 +100,25 @@ func (r *Repo) CreateSession(session *types.SessionInfo) (*SessionCreateAck, err
 		TempPath: tempPath,
 	}, nil
 }
+
+func (r *Repo) DeleteSession(id string) error {
+	if r.config.Redis != "" {
+		r.redisCache.RemoveSession(id)
+		return nil
+	}
+
+	sessionUuid, err := uuid.Parse(id)
+
+	if err != nil {
+		return err
+	}
+
+	if err := r.db.DeleteSession(context.TODO(), pgtype.UUID{
+		Bytes: sessionUuid,
+		Valid: true,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}

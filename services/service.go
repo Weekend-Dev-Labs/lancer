@@ -19,7 +19,7 @@ type Services struct {
 
 func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo) {
 
-	taskManager := NewTaskManager()
+	taskManager := NewTaskManager(repo)
 
 	services := Services{
 		e:          e,

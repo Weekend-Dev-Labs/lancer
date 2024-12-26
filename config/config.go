@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 
@@ -64,8 +63,6 @@ func ParseFlags() *LancerConfig {
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
 			log.Fatalf("[Lancer Error] Invalid file content for configuration (%v)", err)
 		}
-
-		fmt.Println(cfg.Database.Name)
 	}
 
 	// Database Related
