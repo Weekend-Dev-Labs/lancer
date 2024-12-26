@@ -9,12 +9,13 @@ import (
 )
 
 type Session struct {
-	ID        pgtype.UUID
-	FileSize  int64
-	ChunkSize int64
-	MaxChunk  int64
-	FileName  pgtype.Text
-	TempPath  pgtype.Text
-	OwnerID   pgtype.Text
-	CreatedAt pgtype.Timestamp
+	ID           pgtype.UUID
+	FileSize     int64
+	ChunkSize    int64
+	MaxChunk     int64
+	FileName     pgtype.Text
+	TempPath     pgtype.Text
+	OwnerID      pgtype.Text
+	CurrentChunk pgtype.Int8
+	CreatedAt    pgtype.Timestamp
 }

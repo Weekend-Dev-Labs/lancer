@@ -122,3 +122,36 @@ func (r *Repo) DeleteSession(id string) error {
 
 	return nil
 }
+
+func (r *Repo) GetSessionById(id string) (*types.SessionInfo, error) {
+	if r.config.Redis != "" {
+		sessionInfo, err := r.redisCache.GetSessionInfo(id)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return sessionInfo, nil
+	}
+
+	sessionId, _ := uuid.Parse(id)
+
+	sessionInfo, err := r.db.FindSessionById(context.TODO(), pgtype.UUID{
+		Bytes: sessionId,
+		Valid: true,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.SessionInfo{
+		FileSize:     sessionInfo.FileSize,
+		ChunkSize:    sessionInfo.ChunkSize,
+		MaxChunk:     sessionInfo.MaxChunk,
+		FileName:     sessionInfo.FileName.String,
+		TempPath:     sessionInfo.TempPath.String,
+		OwnerID:      sessionInfo.OwnerID.String,
+		CurrentChunk: sessionInfo.CurrentChunk.Int64,
+	}, nil
+}

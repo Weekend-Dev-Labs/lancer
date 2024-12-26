@@ -7,6 +7,7 @@ CREATE TABLE
         file_name TEXT,
         temp_path TEXT,
         owner_id TEXT,
+        current_chunk BIGINT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
