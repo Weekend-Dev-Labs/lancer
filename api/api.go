@@ -21,6 +21,7 @@ func StartServer(cfg *config.LancerConfig, db *db.Queries, cache *cache.Cache) {
 	}
 
 	e.Use(middleware.Logger())
+	e.Use(middleware.CORS())
 
 	newRepo := repo.NewRepo(db, cache, cfg)
 

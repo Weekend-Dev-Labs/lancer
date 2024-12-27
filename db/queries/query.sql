@@ -11,8 +11,8 @@ SELECT id, file_name, owner_id, created_at FROM sessions;
 
 -- name: UpdateSession :exec
 UPDATE sessions
-SET file_name = $1, temp_path = $2
-WHERE id = $3;
+SET file_name = $1, temp_path = $2, current_chunk = $3
+WHERE id = $4;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions

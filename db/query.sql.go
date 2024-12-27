@@ -507,17 +507,23 @@ func (q *Queries) TotalFileSize(ctx context.Context) (int64, error) {
 
 const updateSession = `-- name: UpdateSession :exec
 UPDATE sessions
-SET file_name = $1, temp_path = $2
-WHERE id = $3
+SET file_name = $1, temp_path = $2, current_chunk = $3
+WHERE id = $4
 `
 
 type UpdateSessionParams struct {
-	FileName pgtype.Text
-	TempPath pgtype.Text
-	ID       pgtype.UUID
+	FileName     pgtype.Text
+	TempPath     pgtype.Text
+	CurrentChunk pgtype.Int8
+	ID           pgtype.UUID
 }
 
 func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) error {
-	_, err := q.db.Exec(ctx, updateSession, arg.FileName, arg.TempPath, arg.ID)
+	_, err := q.db.Exec(ctx, updateSession,
+		arg.FileName,
+		arg.TempPath,
+		arg.CurrentChunk,
+		arg.ID,
+	)
 	return err
 }

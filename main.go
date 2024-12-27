@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/sirupsen/logrus"
@@ -26,6 +27,10 @@ func main() {
 	if cfg.Database.Migrate {
 		db.RunMigration(cfg.GetDatabaseConnectionString())
 		return
+	}
+
+	if err := os.MkdirAll(cfg.Store.Local.Path, os.ModeAppend); err != nil {
+		log.Fatalf("[Lancer Error] Failed to create store directory : %v", err.Error())
 	}
 
 	conn, err := pgx.Connect(context.Background(), cfg.GetDatabaseConnectionString())

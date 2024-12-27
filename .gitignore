@@ -25,3 +25,6 @@ go.work.sum
 .env
 
 dummy
+frontend-test/
+temp
+store

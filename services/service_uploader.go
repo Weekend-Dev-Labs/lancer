@@ -1,7 +1,14 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/weekend-dev-labs/lancer/types"
@@ -20,7 +27,99 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, sessionInfo)
+	checksum := c.FormValue("checksum")
+	chunk := c.FormValue("chunk")
+
+	if checksum == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid checksum",
+		})
+	}
+
+	chunkCount, err := strconv.Atoi(chunk)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid chunk count",
+		})
+	}
+
+	hasher := sha256.New()
+
+	file, err := c.FormFile("file")
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	content, err := file.Open()
+
+	if err != nil {
+		return err
+	}
+
+	fileData, err := io.ReadAll(content)
+
+	if err != nil {
+		return err
+	}
+
+	hasher.Write(fileData)
+
+	serverChecksum := hex.EncodeToString(hasher.Sum(nil))
+
+	if serverChecksum != checksum {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "checksum mismatched",
+		})
+	}
+
+	if sessionInfo.MaxChunk == 1 {
+		filePath := fmt.Sprintf("%s/%d_%s", s.cfg.Store.Local.Path, time.Now().Unix(), sessionInfo.FileName)
+
+		err = os.WriteFile(filePath, fileData, os.ModeAppend)
+
+		if err != nil {
+			fmt.Println(err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "failed to save file",
+			})
+		}
+
+		s.tasks.CancelTask(session.SessionID)
+
+		return c.JSON(http.StatusAccepted, map[string]string{
+			"message": "file uploaded",
+		})
+	}
+
+	filePath := fmt.Sprintf("%s/chunk_%d", sessionInfo.TempPath, sessionInfo.CurrentChunk+1)
+
+	fmt.Printf(filePath)
+
+	err = os.WriteFile(filePath, fileData, os.ModeAppend)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to save file",
+		})
+	}
+
+	if err := s.repo.UpdateSessionById(session.SessionID, &types.SessionInfo{
+		CurrentChunk: int64(chunkCount),
+		FileName:     sessionInfo.FileName,
+		TempPath:     sessionInfo.TempPath,
+	}); err != nil {
+		return err
+	}
+
+	s.tasks.ExtendDuration(session.SessionID, time.Duration(time.Minute*2))
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"serverChecksum": serverChecksum,
+	})
 }
 
 func (s *Services) registerUploaderService() {

@@ -155,3 +155,46 @@ func (r *Repo) GetSessionById(id string) (*types.SessionInfo, error) {
 		CurrentChunk: sessionInfo.CurrentChunk.Int64,
 	}, nil
 }
+
+func (r *Repo) UpdateSessionById(id string, session *types.SessionInfo) error {
+	if r.config.Redis != "" {
+		_, err := r.redisCache.CreateSession(id, session)
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	sessionId, err := uuid.Parse(id)
+
+	if err != nil {
+		return err
+	}
+
+	dbSessionInfo := db.UpdateSessionParams{
+		TempPath: pgtype.Text{
+			String: session.TempPath,
+			Valid:  true,
+		},
+		CurrentChunk: pgtype.Int8{
+			Int64: session.CurrentChunk,
+			Valid: true,
+		},
+		FileName: pgtype.Text{
+			String: session.FileName,
+			Valid:  true,
+		},
+		ID: pgtype.UUID{
+			Bytes: sessionId,
+			Valid: true,
+		},
+	}
+
+	if err := r.db.UpdateSession(context.TODO(), dbSessionInfo); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -29,14 +29,6 @@ func (s *Services) middlewareAuthenticate(next echo.HandlerFunc) echo.HandlerFun
 			})
 		}
 
-		// serverInfo, err := s.authenticateFromServer(splitedHeader[1])
-
-		// if err != nil {
-		// 	return c.JSON(http.StatusForbidden, map[string]string{
-		// 		"err": "invalid auth header",
-		// 	})
-		// }
-
 		c.Set(string(types.ContextAuthInfo), &authInfo{
 			ID: "helloo",
 		})
