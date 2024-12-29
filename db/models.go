@@ -19,3 +19,18 @@ type Session struct {
 	CurrentChunk pgtype.Int8
 	CreatedAt    pgtype.Timestamp
 }
+
+type UploadedFile struct {
+	ID               int32
+	FileName         string
+	FilePath         string
+	FileSize         int64
+	FileType         pgtype.Text
+	UploadedBy       string
+	UploadedAt       pgtype.Timestamp
+	IsDeleted        pgtype.Bool
+	Checksum         pgtype.Text
+	Description      pgtype.Text
+	Provider         string
+	ProviderMetadata []byte
+}

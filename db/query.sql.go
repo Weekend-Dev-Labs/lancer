@@ -22,6 +22,19 @@ func (q *Queries) AverageChunkSize(ctx context.Context) (float64, error) {
 	return average_chunk_size, err
 }
 
+const countFilesByUser = `-- name: CountFilesByUser :one
+SELECT COUNT(*) AS user_file_count
+FROM uploaded_files
+WHERE uploaded_by = $1
+`
+
+func (q *Queries) CountFilesByUser(ctx context.Context, uploadedBy string) (int64, error) {
+	row := q.db.QueryRow(ctx, countFilesByUser, uploadedBy)
+	var user_file_count int64
+	err := row.Scan(&user_file_count)
+	return user_file_count, err
+}
+
 const countSessions = `-- name: CountSessions :one
 SELECT COUNT(*) AS total_sessions FROM sessions
 `
@@ -31,6 +44,17 @@ func (q *Queries) CountSessions(ctx context.Context) (int64, error) {
 	var total_sessions int64
 	err := row.Scan(&total_sessions)
 	return total_sessions, err
+}
+
+const countTotalFiles = `-- name: CountTotalFiles :one
+SELECT COUNT(*) AS total_files FROM uploaded_files
+`
+
+func (q *Queries) CountTotalFiles(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countTotalFiles)
+	var total_files int64
+	err := row.Scan(&total_files)
+	return total_files, err
 }
 
 const createSession = `-- name: CreateSession :one
@@ -72,6 +96,58 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const createUploadedFile = `-- name: CreateUploadedFile :one
+INSERT INTO uploaded_files (
+    file_name, file_path, file_size, file_type, uploaded_by, checksum, description, provider, provider_metadata
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
+RETURNING id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata
+`
+
+type CreateUploadedFileParams struct {
+	FileName         string
+	FilePath         string
+	FileSize         int64
+	FileType         pgtype.Text
+	UploadedBy       string
+	Checksum         pgtype.Text
+	Description      pgtype.Text
+	Provider         string
+	ProviderMetadata []byte
+}
+
+func (q *Queries) CreateUploadedFile(ctx context.Context, arg CreateUploadedFileParams) (UploadedFile, error) {
+	row := q.db.QueryRow(ctx, createUploadedFile,
+		arg.FileName,
+		arg.FilePath,
+		arg.FileSize,
+		arg.FileType,
+		arg.UploadedBy,
+		arg.Checksum,
+		arg.Description,
+		arg.Provider,
+		arg.ProviderMetadata,
+	)
+	var i UploadedFile
+	err := row.Scan(
+		&i.ID,
+		&i.FileName,
+		&i.FilePath,
+		&i.FileSize,
+		&i.FileType,
+		&i.UploadedBy,
+		&i.UploadedAt,
+		&i.IsDeleted,
+		&i.Checksum,
+		&i.Description,
+		&i.Provider,
+		&i.ProviderMetadata,
+	)
+	return i, err
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions
 WHERE id = $1
@@ -104,6 +180,190 @@ func (q *Queries) FindDuplicateFileNames(ctx context.Context) ([]FindDuplicateFi
 	for rows.Next() {
 		var i FindDuplicateFileNamesRow
 		if err := rows.Scan(&i.FileName, &i.DuplicateCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findDuplicateFilesByChecksum = `-- name: FindDuplicateFilesByChecksum :many
+SELECT checksum, COUNT(*) AS duplicate_count
+FROM uploaded_files
+GROUP BY checksum
+HAVING COUNT(*) > 1
+`
+
+type FindDuplicateFilesByChecksumRow struct {
+	Checksum       pgtype.Text
+	DuplicateCount int64
+}
+
+func (q *Queries) FindDuplicateFilesByChecksum(ctx context.Context) ([]FindDuplicateFilesByChecksumRow, error) {
+	rows, err := q.db.Query(ctx, findDuplicateFilesByChecksum)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindDuplicateFilesByChecksumRow
+	for rows.Next() {
+		var i FindDuplicateFilesByChecksumRow
+		if err := rows.Scan(&i.Checksum, &i.DuplicateCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findFilesAfterDate = `-- name: FindFilesAfterDate :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE uploaded_at > $1
+`
+
+func (q *Queries) FindFilesAfterDate(ctx context.Context, uploadedAt pgtype.Timestamp) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, findFilesAfterDate, uploadedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findFilesByMetadataKey = `-- name: FindFilesByMetadataKey :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE provider_metadata ? $1
+`
+
+func (q *Queries) FindFilesByMetadataKey(ctx context.Context, providerMetadata []byte) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, findFilesByMetadataKey, providerMetadata)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findFilesByProvider = `-- name: FindFilesByProvider :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE provider = $1
+`
+
+func (q *Queries) FindFilesByProvider(ctx context.Context, provider string) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, findFilesByProvider, provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findFilesByUser = `-- name: FindFilesByUser :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE uploaded_by = $1
+`
+
+func (q *Queries) FindFilesByUser(ctx context.Context, uploadedBy string) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, findFilesByUser, uploadedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -383,6 +643,143 @@ func (q *Queries) FindSessionsByOwners(ctx context.Context, ownerID pgtype.Text)
 	return items, nil
 }
 
+const getLargestFile = `-- name: GetLargestFile :one
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+ORDER BY file_size DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLargestFile(ctx context.Context) (UploadedFile, error) {
+	row := q.db.QueryRow(ctx, getLargestFile)
+	var i UploadedFile
+	err := row.Scan(
+		&i.ID,
+		&i.FileName,
+		&i.FilePath,
+		&i.FileSize,
+		&i.FileType,
+		&i.UploadedBy,
+		&i.UploadedAt,
+		&i.IsDeleted,
+		&i.Checksum,
+		&i.Description,
+		&i.Provider,
+		&i.ProviderMetadata,
+	)
+	return i, err
+}
+
+const getUploadedFileByID = `-- name: GetUploadedFileByID :one
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE id = $1
+`
+
+func (q *Queries) GetUploadedFileByID(ctx context.Context, id int32) (UploadedFile, error) {
+	row := q.db.QueryRow(ctx, getUploadedFileByID, id)
+	var i UploadedFile
+	err := row.Scan(
+		&i.ID,
+		&i.FileName,
+		&i.FilePath,
+		&i.FileSize,
+		&i.FileType,
+		&i.UploadedBy,
+		&i.UploadedAt,
+		&i.IsDeleted,
+		&i.Checksum,
+		&i.Description,
+		&i.Provider,
+		&i.ProviderMetadata,
+	)
+	return i, err
+}
+
+const hardDeleteUploadedFile = `-- name: HardDeleteUploadedFile :exec
+DELETE FROM uploaded_files
+WHERE id = $1
+`
+
+func (q *Queries) HardDeleteUploadedFile(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, hardDeleteUploadedFile, id)
+	return err
+}
+
+const listActiveFiles = `-- name: ListActiveFiles :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE is_deleted = FALSE
+`
+
+func (q *Queries) ListActiveFiles(ctx context.Context) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, listActiveFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeletedFiles = `-- name: ListDeletedFiles :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE is_deleted = TRUE
+`
+
+func (q *Queries) ListDeletedFiles(ctx context.Context) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, listDeletedFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSessionDetails = `-- name: ListSessionDetails :many
 SELECT id, file_name, owner_id, created_at FROM sessions
 `
@@ -453,6 +850,43 @@ func (q *Queries) ListSessions(ctx context.Context) ([]Session, error) {
 	return items, nil
 }
 
+const listUploadedFiles = `-- name: ListUploadedFiles :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+`
+
+func (q *Queries) ListUploadedFiles(ctx context.Context) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, listUploadedFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const paginateSessions = `-- name: PaginateSessions :many
 SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
 ORDER BY created_at DESC
@@ -494,12 +928,117 @@ func (q *Queries) PaginateSessions(ctx context.Context, arg PaginateSessionsPara
 	return items, nil
 }
 
+const paginateUploadedFiles = `-- name: PaginateUploadedFiles :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE is_deleted = FALSE
+ORDER BY uploaded_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type PaginateUploadedFilesParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) PaginateUploadedFiles(ctx context.Context, arg PaginateUploadedFilesParams) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, paginateUploadedFiles, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchProviderMetadata = `-- name: SearchProviderMetadata :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
+WHERE provider_metadata @> $1
+`
+
+func (q *Queries) SearchProviderMetadata(ctx context.Context, providerMetadata []byte) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, searchProviderMetadata, providerMetadata)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const softDeleteUploadedFile = `-- name: SoftDeleteUploadedFile :exec
+UPDATE uploaded_files
+SET is_deleted = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SoftDeleteUploadedFile(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, softDeleteUploadedFile, id)
+	return err
+}
+
 const totalFileSize = `-- name: TotalFileSize :one
 SELECT SUM(file_size) AS total_file_size FROM sessions
 `
 
 func (q *Queries) TotalFileSize(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, totalFileSize)
+	var total_file_size int64
+	err := row.Scan(&total_file_size)
+	return total_file_size, err
+}
+
+const totalUploadFileSize = `-- name: TotalUploadFileSize :one
+SELECT SUM(file_size) AS total_file_size FROM uploaded_files
+`
+
+func (q *Queries) TotalUploadFileSize(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, totalUploadFileSize)
 	var total_file_size int64
 	err := row.Scan(&total_file_size)
 	return total_file_size, err
@@ -525,5 +1064,22 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) er
 		arg.CurrentChunk,
 		arg.ID,
 	)
+	return err
+}
+
+const updateUploadedFileMetadata = `-- name: UpdateUploadedFileMetadata :exec
+UPDATE uploaded_files
+SET description = $1, provider_metadata = $2
+WHERE id = $3
+`
+
+type UpdateUploadedFileMetadataParams struct {
+	Description      pgtype.Text
+	ProviderMetadata []byte
+	ID               int32
+}
+
+func (q *Queries) UpdateUploadedFileMetadata(ctx context.Context, arg UpdateUploadedFileMetadataParams) error {
+	_, err := q.db.Exec(ctx, updateUploadedFileMetadata, arg.Description, arg.ProviderMetadata, arg.ID)
 	return err
 }

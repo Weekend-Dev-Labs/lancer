@@ -69,3 +69,90 @@ HAVING COUNT(*) > 1;
 -- name: FindSessionById :one
 SELECT * FROM sessions
 WHERE id = $1;
+
+-- name: CreateUploadedFile :one
+INSERT INTO uploaded_files (
+    file_name, file_path, file_size, file_type, uploaded_by, checksum, description, provider, provider_metadata
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
+RETURNING *;
+
+-- name: ListUploadedFiles :many
+SELECT * FROM uploaded_files;
+
+-- name: GetUploadedFileByID :one
+SELECT * FROM uploaded_files
+WHERE id = $1;
+
+-- name: UpdateUploadedFileMetadata :exec
+UPDATE uploaded_files
+SET description = $1, provider_metadata = $2
+WHERE id = $3;
+
+-- name: SoftDeleteUploadedFile :exec
+UPDATE uploaded_files
+SET is_deleted = TRUE
+WHERE id = $1;
+
+-- name: FindFilesByUser :many
+SELECT * FROM uploaded_files
+WHERE uploaded_by = $1;
+
+-- name: ListActiveFiles :many
+SELECT * FROM uploaded_files
+WHERE is_deleted = FALSE;
+
+-- name: FindFilesAfterDate :many
+SELECT * FROM uploaded_files
+WHERE uploaded_at > $1;
+
+-- name: FindFilesByProvider :many
+SELECT * FROM uploaded_files
+WHERE provider = $1;
+
+-- name: CountTotalFiles :one
+SELECT COUNT(*) AS total_files FROM uploaded_files;
+
+-- name: CountFilesByUser :one
+SELECT COUNT(*) AS user_file_count
+FROM uploaded_files
+WHERE uploaded_by = $1;
+
+-- name: TotalUploadFileSize :one
+SELECT SUM(file_size) AS total_file_size FROM uploaded_files;
+
+-- name: GetLargestFile :one
+SELECT * FROM uploaded_files
+ORDER BY file_size DESC
+LIMIT 1;
+
+-- name: PaginateUploadedFiles :many
+SELECT * FROM uploaded_files
+WHERE is_deleted = FALSE
+ORDER BY uploaded_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: FindDuplicateFilesByChecksum :many
+SELECT checksum, COUNT(*) AS duplicate_count
+FROM uploaded_files
+GROUP BY checksum
+HAVING COUNT(*) > 1;
+
+-- name: HardDeleteUploadedFile :exec
+DELETE FROM uploaded_files
+WHERE id = $1;
+
+-- name: ListDeletedFiles :many
+SELECT * FROM uploaded_files
+WHERE is_deleted = TRUE;
+
+-- name: SearchProviderMetadata :many
+SELECT * FROM uploaded_files
+WHERE provider_metadata @> $1;
+
+
+-- name: FindFilesByMetadataKey :many
+SELECT * FROM uploaded_files
+WHERE provider_metadata ? $1;
