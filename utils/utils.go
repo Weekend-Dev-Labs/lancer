@@ -33,3 +33,7 @@ func StringToPGUUID(uuidStr string) (pgtype.UUID, error) {
 
 	return pgUUID, nil
 }
+
+func GetTempPath(root string, id string, filename string) string {
+	return root + "/" + id + filename
+}

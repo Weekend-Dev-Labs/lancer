@@ -6,6 +6,7 @@ import (
 	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/db/repo"
+	"github.com/weekend-dev-labs/lancer/utils"
 )
 
 type Services struct {
@@ -15,11 +16,13 @@ type Services struct {
 	redisCache *cache.Cache
 	tasks      *TaskManager
 	repo       *repo.Repo
+	fio        *utils.FileIO
 }
 
 func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo) {
 
 	taskManager := NewTaskManager(repo)
+	fio := utils.NewFileIO(cfg.Store.Local.Path, cfg.Store.Local.Temp)
 
 	services := Services{
 		e:          e,
@@ -28,6 +31,7 @@ func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, r
 		redisCache: redisCache,
 		tasks:      taskManager,
 		repo:       repo,
+		fio:        fio,
 	}
 
 	// registering the services

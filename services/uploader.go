@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -76,15 +75,9 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 	}
 
 	if sessionInfo.MaxChunk == 1 {
-		filePath := fmt.Sprintf("%s/%d_%s", s.cfg.Store.Local.Path, time.Now().Unix(), sessionInfo.FileName)
 
-		err = os.WriteFile(filePath, fileData, os.ModeAppend)
-
-		if err != nil {
-			fmt.Println(err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "failed to save file",
-			})
+		if err := s.fio.WriteToStoreOnly(sessionInfo.FileName, fileData); err != nil {
+			return err
 		}
 
 		s.tasks.CancelTask(session.SessionID)
@@ -94,17 +87,23 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		})
 	}
 
-	filePath := fmt.Sprintf("%s/chunk_%d", sessionInfo.TempPath, sessionInfo.CurrentChunk+1)
+	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
 
-	fmt.Printf(filePath)
+		if err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData); err != nil {
+			return nil
+		}
 
-	err = os.WriteFile(filePath, fileData, os.ModeAppend)
+		if err := s.tasks.CancelWithBaseTask(sessionInfo.TempPath, session.SessionID); err != nil {
+			return err
+		}
 
-	if err != nil {
-		fmt.Println(err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "failed to save file",
+		return c.JSON(http.StatusAccepted, map[string]string{
+			"success": "true",
 		})
+	}
+
+	if err := s.fio.AddChunk(sessionInfo.TempPath, int(sessionInfo.CurrentChunk)+1, fileData); err != nil {
+		return err
 	}
 
 	if err := s.repo.UpdateSessionById(session.SessionID, &types.SessionInfo{

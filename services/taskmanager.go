@@ -115,3 +115,9 @@ func (tm *TaskManager) CancelTask(id string) {
 		delete(tm.tasks, id)
 	}
 }
+
+func (tm *TaskManager) CancelWithBaseTask(path string, id string) error {
+	tm.CancelTask(id)
+
+	return BaseTask(path, context.Background())
+}
