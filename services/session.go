@@ -60,6 +60,8 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		}
 	})
 
+	go s.webhook.SendEvent(EventSessionCreate, session)
+
 	return c.JSON(http.StatusOK, map[string]string{
 		"sessionToken": sessionToken,
 	})

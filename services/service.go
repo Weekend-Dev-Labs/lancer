@@ -17,11 +17,13 @@ type Services struct {
 	tasks      *TaskManager
 	repo       *repo.Repo
 	fio        *utils.FileIO
+	webhook    *Webhook
 }
 
 func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo) {
 
 	taskManager := NewTaskManager(repo)
+	webhook := NewWebhookNotifier(cfg.WebhookEndpoint)
 	fio := utils.NewFileIO(cfg.Store.Local.Path, cfg.Store.Local.Temp)
 
 	services := Services{
@@ -32,6 +34,7 @@ func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, r
 		tasks:      taskManager,
 		repo:       repo,
 		fio:        fio,
+		webhook:    webhook,
 	}
 
 	// registering the services

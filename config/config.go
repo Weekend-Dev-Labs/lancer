@@ -16,9 +16,10 @@ type LancerConfig struct {
 		Name     string `yaml:"name"`
 		Migrate  bool   `yaml:"migrate"`
 	}
-	UseRedis bool   `yaml:"use-redis"`
-	Redis    string `yaml:"redis"`
-	Store    struct {
+	UseRedis        bool   `yaml:"use-redis"`
+	Redis           string `yaml:"redis"`
+	WebhookEndpoint string `yaml:"webhook-endpoint"`
+	Store           struct {
 		Local struct {
 			Path string `yaml:"path"`
 			Temp string `yaml:"temp-path"`
@@ -48,6 +49,8 @@ func ParseFlags() *LancerConfig {
 	flag.StringVar(&cfg.Store.Local.Path, "store-local-path", "store", "Sets the path to store the media files locally.")
 	flag.StringVar(&cfg.Store.Local.Temp, "store-local-temp", "temp", "Sets the path to store the media files temporariliy")
 	flag.StringVar(&cfg.AuthEndpoint, "auth-endpoint", "", "Sets the path for authentication")
+
+	flag.StringVar(&cfg.WebhookEndpoint, "webhook-endpoint", "", "Sets the path for webhook endpoint.")
 
 	flag.Parse()
 

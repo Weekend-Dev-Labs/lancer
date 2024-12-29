@@ -34,12 +34,13 @@ func (r *Repo) getTempPath(id string, filename string) string {
 	return r.config.Store.Local.Temp + "/" + id + filename
 }
 
-func (r *Repo) CreateSession(session *types.SessionInfo) (*SessionCreateAck, error) {
+func (r *Repo) CreateSession(session *types.SessionInfo) (*types.SessionInfo, error) {
 	sessionKey := uuid.New().String()
 
 	tempPath := r.getTempPath(sessionKey, session.FileName)
 
 	sessionWithPath := &types.SessionInfo{
+		ID:           sessionKey,
 		FileSize:     session.FileSize,
 		ChunkSize:    session.ChunkSize,
 		MaxChunk:     session.MaxChunk,
@@ -56,10 +57,7 @@ func (r *Repo) CreateSession(session *types.SessionInfo) (*SessionCreateAck, err
 			return nil, err
 		}
 
-		return &SessionCreateAck{
-			ID:       sessionKey,
-			TempPath: tempPath,
-		}, nil
+		return sessionWithPath, nil
 	}
 
 	dbSessionData := db.CreateSessionParams{
@@ -95,9 +93,15 @@ func (r *Repo) CreateSession(session *types.SessionInfo) (*SessionCreateAck, err
 		return nil, nil
 	}
 
-	return &SessionCreateAck{
-		ID:       ack.ID.String(),
-		TempPath: tempPath,
+	return &types.SessionInfo{
+		ID:           ack.ID.String(),
+		TempPath:     tempPath,
+		FileSize:     ack.FileSize,
+		ChunkSize:    ack.ChunkSize,
+		MaxChunk:     ack.MaxChunk,
+		FileName:     ack.FileName.String,
+		OwnerID:      ack.OwnerID.String,
+		CurrentChunk: ack.CurrentChunk.Int64,
 	}, nil
 }
 

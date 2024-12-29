@@ -1,11 +1,12 @@
 database:
-    migrate: false
+    migrate: true
     address: "localhost:5432"
     user: "postgres"
     password: "qwertyuiop"
     name: "lancer-main"
 use-redis: false
 redis: ""
+webhook-endpoint: "http://localhost:3000/api/webhook/lancer"
 store:
   local:
     path: "store"

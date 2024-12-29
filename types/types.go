@@ -19,6 +19,7 @@ type SessionTokenPayload struct {
 }
 
 type SessionInfo struct {
+	ID           string `json:"id"`
 	FileSize     int64  `json:"file_size"`
 	ChunkSize    int64  `json:"chunk_size"`
 	MaxChunk     int64  `json:"max_chunk"`
