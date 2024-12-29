@@ -1,15 +1,20 @@
 package services
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
+	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
 	"github.com/weekend-dev-labs/lancer/utils"
 )
@@ -89,11 +94,32 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 
 	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
 
-		if err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData); err != nil {
+		filePath, err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData)
+
+		if err != nil {
 			return nil
 		}
 
 		if err := s.tasks.CancelWithBaseTask(sessionInfo.TempPath, session.SessionID); err != nil {
+			return err
+		}
+
+		ext := filepath.Ext(sessionInfo.FileName)
+		mimeType := mime.TypeByExtension(ext)
+
+		ack, err := s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
+			FileName: sessionInfo.FileName,
+			FilePath: filePath,
+			FileSize: sessionInfo.FileSize,
+			FileType: pgtype.Text{
+				String: mimeType,
+				Valid:  true,
+			},
+			UploadedBy: sessionInfo.OwnerID,
+			Provider:   "local",
+		})
+
+		if err != nil {
 			return err
 		}
 

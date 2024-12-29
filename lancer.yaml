@@ -1,5 +1,5 @@
 database:
-    migrate: true
+    migrate: false
     address: "localhost:5432"
     user: "postgres"
     password: "qwertyuiop"

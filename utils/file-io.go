@@ -31,13 +31,13 @@ func (fio *FileIO) WriteToStoreOnly(fileName string, data []byte) error {
 	return os.WriteFile(filePath, data, os.ModeAppend)
 }
 
-func (fio *FileIO) MergeChunksAndWriteToStore(path string, fileName string, totalChunks int64, data []byte) error {
+func (fio *FileIO) MergeChunksAndWriteToStore(path string, fileName string, totalChunks int64, data []byte) (string, error) {
 	filePath := fmt.Sprintf("%s/%d_%s", fio.local, time.Now().Unix(), fileName)
 
 	outFile, err := os.Create(filePath)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	defer outFile.Close()
@@ -46,17 +46,17 @@ func (fio *FileIO) MergeChunksAndWriteToStore(path string, fileName string, tota
 		inFile, err := os.Open(path + fmt.Sprintf("/chunk_%d", i))
 
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		_, err = io.Copy(outFile, inFile)
 
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		inFile.Close()
 	}
 
-	return nil
+	return filePath, nil
 }
