@@ -94,7 +94,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 
 	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
 
-		filePath, err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData)
+		filePath, checksum, err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData)
 
 		if err != nil {
 			return nil
@@ -107,7 +107,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		ext := filepath.Ext(sessionInfo.FileName)
 		mimeType := mime.TypeByExtension(ext)
 
-		ack, err := s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
+		_, err = s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
 			FileName: sessionInfo.FileName,
 			FilePath: filePath,
 			FileSize: sessionInfo.FileSize,
@@ -117,6 +117,10 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			},
 			UploadedBy: sessionInfo.OwnerID,
 			Provider:   "local",
+			Checksum: pgtype.Text{
+				String: checksum,
+				Valid:  true,
+			},
 		})
 
 		if err != nil {
@@ -124,7 +128,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		}
 
 		return c.JSON(http.StatusAccepted, map[string]string{
-			"success": "true",
+			"success": checksum,
 		})
 	}
 

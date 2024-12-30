@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -31,32 +33,38 @@ func (fio *FileIO) WriteToStoreOnly(fileName string, data []byte) error {
 	return os.WriteFile(filePath, data, os.ModeAppend)
 }
 
-func (fio *FileIO) MergeChunksAndWriteToStore(path string, fileName string, totalChunks int64, data []byte) (string, error) {
+func (fio *FileIO) MergeChunksAndWriteToStore(path string, fileName string, totalChunks int64, data []byte) (string, string, error) {
 	filePath := fmt.Sprintf("%s/%d_%s", fio.local, time.Now().Unix(), fileName)
 
 	outFile, err := os.Create(filePath)
 
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	defer outFile.Close()
+
+	hasher := sha256.New()
+
+	multiWriter := io.MultiWriter(outFile, hasher)
 
 	for i := 1; i < int(totalChunks); i++ {
 		inFile, err := os.Open(path + fmt.Sprintf("/chunk_%d", i))
 
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
-		_, err = io.Copy(outFile, inFile)
+		_, err = io.Copy(multiWriter, inFile)
 
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		inFile.Close()
 	}
 
-	return filePath, nil
+	checksum := hex.EncodeToString(hasher.Sum(nil))
+
+	return filePath, checksum, nil
 }
