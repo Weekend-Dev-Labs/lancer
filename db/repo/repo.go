@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -9,6 +10,7 @@ import (
 	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Repo struct {
@@ -27,6 +29,32 @@ func NewRepo(db *db.Queries, redisCache *cache.Cache, config *config.LancerConfi
 		db:         db,
 		redisCache: redisCache,
 		config:     config,
+	}
+}
+
+func CreateInitialUser(cfg *config.LancerConfig, query *db.Queries) {
+	isUserExists, err := query.CheckEmailExists(context.TODO(), cfg.Auth.Email)
+
+	if err != nil {
+		log.Fatalf("[Lancer Error] Failed to check admin user (%v)", err)
+	}
+
+	if !isUserExists {
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(cfg.Auth.Password), bcrypt.DefaultCost)
+
+		if err != nil {
+			log.Fatalf("[Lancer Error] Failed to hash password for admin user (%v)", err)
+		}
+
+		_, err = query.CreateUser(context.TODO(), db.CreateUserParams{
+			Email:    cfg.Auth.Email,
+			Password: string(hashedPassword),
+		})
+
+		if err != nil {
+			log.Fatalf("[Lancer Error] Failed to create admin user")
+		}
 	}
 }
 

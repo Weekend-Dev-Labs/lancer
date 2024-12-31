@@ -12,6 +12,7 @@ import (
 	"github.com/weekend-dev-labs/lancer/cache"
 	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/db"
+	"github.com/weekend-dev-labs/lancer/db/repo"
 )
 
 var logger = logrus.New()
@@ -44,6 +45,8 @@ func main() {
 	query := db.New(conn)
 
 	redisCache := cache.NewCache(cfg.Redis)
+
+	repo.CreateInitialUser(cfg, query)
 
 	if redisCache == nil {
 		log.Printf("[LANCER WARNING] Redis Server Configuration Missing. Using Database to store sessions.")

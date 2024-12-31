@@ -1,9 +1,9 @@
 database:
-    migrate: true
-    address: "localhost:5432"
-    user: "postgres"
-    password: "qwertyuiop"
-    name: "lancer-main"
+  migrate: false
+  address: "localhost:5432"
+  user: "postgres"
+  password: "qwertyuiop"
+  name: "lancer-main"
 use-redis: false
 redis: ""
 webhook-endpoint: "http://localhost:3000/api/webhook/lancer"
@@ -17,3 +17,6 @@ store:
     clientSecret: ""
     bucket: ""
 admin-token-secret: "ashjdjkhuiqh827187hjhkasdj"
+auth:
+  email: "lancer@email.com"
+  password: "password"

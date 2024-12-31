@@ -28,6 +28,11 @@ type LancerConfig struct {
 	AuthEndpoint string `yaml:"auth-endpoint"`
 
 	AdminTokenSigningSecret string `yaml:"admin-token-secret"`
+
+	Auth struct {
+		Email    string `yaml:"email"`
+		Password string `yaml:"password"`
+	}
 }
 
 func ParseFlags() *LancerConfig {
@@ -54,6 +59,9 @@ func ParseFlags() *LancerConfig {
 
 	flag.StringVar(&cfg.WebhookEndpoint, "webhook-endpoint", "", "Sets the path for webhook endpoint.")
 	flag.StringVar(&cfg.AdminTokenSigningSecret, "admin-token-secret", "admin-token", "Sets the token signing secret for the admin token")
+
+	flag.StringVar(&cfg.Auth.Email, "email", "lancer@email.com", "Email to login to dashboard")
+	flag.StringVar(&cfg.Auth.Password, "password", "password", "Password to login to dashboard")
 
 	flag.Parse()
 
