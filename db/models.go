@@ -34,3 +34,11 @@ type UploadedFile struct {
 	Provider         string
 	ProviderMetadata []byte
 }
+
+type User struct {
+	ID        pgtype.UUID
+	Email     string
+	Password  string
+	CreatedAt pgtype.Timestamp
+	LastLogin pgtype.Timestamp
+}

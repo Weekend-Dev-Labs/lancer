@@ -136,7 +136,7 @@ func (s *Services) serviceEndSession(c echo.Context) error {
 }
 
 func (s *Services) registerSessionServicer() {
-	group := s.e.Group("/services")
+	group := s.e.Group("/sessions")
 
 	group.Use(s.middlewareAuthenticate)
 

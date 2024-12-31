@@ -156,3 +156,59 @@ WHERE provider_metadata @> $1;
 -- name: FindFilesByMetadataKey :many
 SELECT * FROM uploaded_files
 WHERE provider_metadata ? $1;
+
+-- name: CreateUser :one
+INSERT INTO users (email, password)
+VALUES ($1, $2)
+RETURNING *;
+
+-- name: ListUsers :many
+SELECT * FROM users;
+
+-- name: GetUserByID :one
+SELECT * FROM users
+WHERE id = $1;
+
+-- name: GetUserByEmail :one
+SELECT * FROM users
+WHERE email = $1;
+
+-- name: UpdateLastLogin :exec
+UPDATE users
+SET last_login = CURRENT_TIMESTAMP
+WHERE id = $1;
+
+-- name: DeleteUserByID :exec
+DELETE FROM users
+WHERE id = $1;
+
+-- name: FindUsersAfterDate :many
+SELECT * FROM users
+WHERE created_at > $1;
+
+-- name: GetRecentUsers :many
+SELECT * FROM users
+ORDER BY created_at DESC
+LIMIT $1;
+
+-- name: GetInactiveUsers :many
+SELECT * FROM users
+WHERE last_login < $1;
+
+-- name: CountTotalUsers :one
+SELECT COUNT(*) AS total_users FROM users;
+
+-- name: CountUsersAfterDate :one
+SELECT COUNT(*) AS recent_users
+FROM users
+WHERE created_at > $1;
+
+-- name: PaginateUsers :many
+SELECT * FROM users
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CheckEmailExists :one
+SELECT EXISTS (
+    SELECT 1 FROM users WHERE email = $1
+) AS email_exists;

@@ -22,6 +22,19 @@ func (q *Queries) AverageChunkSize(ctx context.Context) (float64, error) {
 	return average_chunk_size, err
 }
 
+const checkEmailExists = `-- name: CheckEmailExists :one
+SELECT EXISTS (
+    SELECT 1 FROM users WHERE email = $1
+) AS email_exists
+`
+
+func (q *Queries) CheckEmailExists(ctx context.Context, email string) (bool, error) {
+	row := q.db.QueryRow(ctx, checkEmailExists, email)
+	var email_exists bool
+	err := row.Scan(&email_exists)
+	return email_exists, err
+}
+
 const countFilesByUser = `-- name: CountFilesByUser :one
 SELECT COUNT(*) AS user_file_count
 FROM uploaded_files
@@ -55,6 +68,30 @@ func (q *Queries) CountTotalFiles(ctx context.Context) (int64, error) {
 	var total_files int64
 	err := row.Scan(&total_files)
 	return total_files, err
+}
+
+const countTotalUsers = `-- name: CountTotalUsers :one
+SELECT COUNT(*) AS total_users FROM users
+`
+
+func (q *Queries) CountTotalUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countTotalUsers)
+	var total_users int64
+	err := row.Scan(&total_users)
+	return total_users, err
+}
+
+const countUsersAfterDate = `-- name: CountUsersAfterDate :one
+SELECT COUNT(*) AS recent_users
+FROM users
+WHERE created_at > $1
+`
+
+func (q *Queries) CountUsersAfterDate(ctx context.Context, createdAt pgtype.Timestamp) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsersAfterDate, createdAt)
+	var recent_users int64
+	err := row.Scan(&recent_users)
+	return recent_users, err
 }
 
 const createSession = `-- name: CreateSession :one
@@ -148,6 +185,30 @@ func (q *Queries) CreateUploadedFile(ctx context.Context, arg CreateUploadedFile
 	return i, err
 }
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (email, password)
+VALUES ($1, $2)
+RETURNING id, email, password, created_at, last_login
+`
+
+type CreateUserParams struct {
+	Email    string
+	Password string
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.Password)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.LastLogin,
+	)
+	return i, err
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions
 WHERE id = $1
@@ -155,6 +216,16 @@ WHERE id = $1
 
 func (q *Queries) DeleteSession(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteSession, id)
+	return err
+}
+
+const deleteUserByID = `-- name: DeleteUserByID :exec
+DELETE FROM users
+WHERE id = $1
+`
+
+func (q *Queries) DeleteUserByID(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserByID, id)
 	return err
 }
 
@@ -643,6 +714,68 @@ func (q *Queries) FindSessionsByOwners(ctx context.Context, ownerID pgtype.Text)
 	return items, nil
 }
 
+const findUsersAfterDate = `-- name: FindUsersAfterDate :many
+SELECT id, email, password, created_at, last_login FROM users
+WHERE created_at > $1
+`
+
+func (q *Queries) FindUsersAfterDate(ctx context.Context, createdAt pgtype.Timestamp) ([]User, error) {
+	rows, err := q.db.Query(ctx, findUsersAfterDate, createdAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Password,
+			&i.CreatedAt,
+			&i.LastLogin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getInactiveUsers = `-- name: GetInactiveUsers :many
+SELECT id, email, password, created_at, last_login FROM users
+WHERE last_login < $1
+`
+
+func (q *Queries) GetInactiveUsers(ctx context.Context, lastLogin pgtype.Timestamp) ([]User, error) {
+	rows, err := q.db.Query(ctx, getInactiveUsers, lastLogin)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Password,
+			&i.CreatedAt,
+			&i.LastLogin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLargestFile = `-- name: GetLargestFile :one
 SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
 ORDER BY file_size DESC
@@ -669,6 +802,38 @@ func (q *Queries) GetLargestFile(ctx context.Context) (UploadedFile, error) {
 	return i, err
 }
 
+const getRecentUsers = `-- name: GetRecentUsers :many
+SELECT id, email, password, created_at, last_login FROM users
+ORDER BY created_at DESC
+LIMIT $1
+`
+
+func (q *Queries) GetRecentUsers(ctx context.Context, limit int32) ([]User, error) {
+	rows, err := q.db.Query(ctx, getRecentUsers, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Password,
+			&i.CreatedAt,
+			&i.LastLogin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUploadedFileByID = `-- name: GetUploadedFileByID :one
 SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
 WHERE id = $1
@@ -690,6 +855,42 @@ func (q *Queries) GetUploadedFileByID(ctx context.Context, id int32) (UploadedFi
 		&i.Description,
 		&i.Provider,
 		&i.ProviderMetadata,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, password, created_at, last_login FROM users
+WHERE email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.LastLogin,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, password, created_at, last_login FROM users
+WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.LastLogin,
 	)
 	return i, err
 }
@@ -887,6 +1088,36 @@ func (q *Queries) ListUploadedFiles(ctx context.Context) ([]UploadedFile, error)
 	return items, nil
 }
 
+const listUsers = `-- name: ListUsers :many
+SELECT id, email, password, created_at, last_login FROM users
+`
+
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Password,
+			&i.CreatedAt,
+			&i.LastLogin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const paginateSessions = `-- name: PaginateSessions :many
 SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
 ORDER BY created_at DESC
@@ -973,6 +1204,43 @@ func (q *Queries) PaginateUploadedFiles(ctx context.Context, arg PaginateUploade
 	return items, nil
 }
 
+const paginateUsers = `-- name: PaginateUsers :many
+SELECT id, email, password, created_at, last_login FROM users
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type PaginateUsersParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) PaginateUsers(ctx context.Context, arg PaginateUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, paginateUsers, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Password,
+			&i.CreatedAt,
+			&i.LastLogin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchProviderMetadata = `-- name: SearchProviderMetadata :many
 SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM uploaded_files
 WHERE provider_metadata @> $1
@@ -1042,6 +1310,17 @@ func (q *Queries) TotalUploadFileSize(ctx context.Context) (int64, error) {
 	var total_file_size int64
 	err := row.Scan(&total_file_size)
 	return total_file_size, err
+}
+
+const updateLastLogin = `-- name: UpdateLastLogin :exec
+UPDATE users
+SET last_login = CURRENT_TIMESTAMP
+WHERE id = $1
+`
+
+func (q *Queries) UpdateLastLogin(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, updateLastLogin, id)
+	return err
 }
 
 const updateSession = `-- name: UpdateSession :exec

@@ -40,4 +40,5 @@ func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, r
 	// registering the services
 	services.registerSessionServicer()
 	services.registerUploaderService()
+	services.registerAdminService()
 }

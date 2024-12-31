@@ -12,7 +12,7 @@ CREATE TABLE
     );
 
 CREATE TABLE
-    uploaded_files (
+    IF NOT EXISTS uploaded_files (
         id SERIAL PRIMARY KEY,
         file_name VARCHAR(255) NOT NULL,
         file_path TEXT NOT NULL,
@@ -27,6 +27,14 @@ CREATE TABLE
         provider_metadata JSONB
     );
 
+CREATE TABLE
+    IF NOT EXISTS users (
+        id uuid DEFAULT gen_random_uuid (),
+        email VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
 CREATE INDEX idx_uploaded_files_provider ON uploaded_files (provider);
 

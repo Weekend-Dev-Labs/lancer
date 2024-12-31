@@ -33,3 +33,8 @@ type UploaderChunkPayload struct {
 	ChunkCount int64  `validate:"required"`
 	Checksum   string `validate:"required"`
 }
+
+type AdminUserPayload struct {
+	Email    string `json:"email" validate:"email"`
+	Password string `json:"password" validate:"required"`
+}

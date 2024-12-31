@@ -26,6 +26,8 @@ type LancerConfig struct {
 		}
 	}
 	AuthEndpoint string `yaml:"auth-endpoint"`
+
+	AdminTokenSigningSecret string `yaml:"admin-token-secret"`
 }
 
 func ParseFlags() *LancerConfig {
@@ -51,6 +53,7 @@ func ParseFlags() *LancerConfig {
 	flag.StringVar(&cfg.AuthEndpoint, "auth-endpoint", "", "Sets the path for authentication")
 
 	flag.StringVar(&cfg.WebhookEndpoint, "webhook-endpoint", "", "Sets the path for webhook endpoint.")
+	flag.StringVar(&cfg.AdminTokenSigningSecret, "admin-token-secret", "admin-token", "Sets the token signing secret for the admin token")
 
 	flag.Parse()
 
