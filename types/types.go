@@ -5,6 +5,7 @@ type ContextKeys string
 const (
 	ContextAuthInfo    = ContextKeys("auth-info")
 	ContextSessionInfo = ContextKeys("session-info")
+	ContextWebToken    = ContextKeys("webtoken-info")
 )
 
 type CreateSessionPayload struct {

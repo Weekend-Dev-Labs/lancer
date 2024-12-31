@@ -48,8 +48,13 @@ func (s *Services) serviceLoginAdmin(c echo.Context) error {
 	})
 }
 
+func (s *Services) serviceCheckAdmin(c echo.Context) error {
+	return c.String(http.StatusAccepted, "Correct Token")
+}
+
 func (s *Services) registerAdminService() {
 	group := s.e.Group("/admin")
 
 	group.POST("/login", s.serviceLoginAdmin)
+	group.GET("/check", s.middlewareAdminAuthenticator(s.serviceCheckAdmin))
 }

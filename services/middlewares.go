@@ -61,6 +61,30 @@ func (s *Services) middlewareSessionAuthenticator(next echo.HandlerFunc) echo.Ha
 	}
 }
 
+func (s *Services) middlewareAdminAuthenticator(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		adminHeader := c.Request().Header.Get("x-web-token")
+
+		if adminHeader == "" {
+			return c.JSON(http.StatusForbidden, map[string]string{
+				"error": "invalid web / admin token",
+			})
+		}
+
+		adminInfo, err := utils.GetAdminInfo(adminHeader, s.cfg.AdminTokenSigningSecret)
+
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "invalid web token or token expired",
+			})
+		}
+
+		c.Set(string(types.ContextWebToken), adminInfo)
+
+		return next(c)
+	}
+}
+
 func (lv *LancerValidator) Validate(i interface{}) error {
 	if err := lv.Validator.Struct(i); err != nil {
 		return echo.NewHTTPError(http.StatusUnprocessableEntity, err.Error())
