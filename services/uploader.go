@@ -151,8 +151,23 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 	})
 }
 
+func (s *Services) serviceGetUploads(c echo.Context) error {
+	uploads, err := s.db.PaginateUploadedFiles(context.Background(), db.PaginateUploadedFilesParams{
+		Limit: 20, Offset: 0,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"uploads": uploads,
+	})
+}
+
 func (s *Services) registerUploaderService() {
 	group := s.e.Group("/upload")
 
+	group.GET("", s.middlewareAdminAuthenticator(s.serviceGetUploads))
 	group.POST("", s.middlewareSessionAuthenticator(s.serviceHandlerChunkUploader))
 }
