@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 	"github.com/weekend-dev-labs/lancer/api"
 	"github.com/weekend-dev-labs/lancer/cache"
@@ -34,13 +34,13 @@ func main() {
 		log.Fatalf("[Lancer Error] Failed to create store directory : %v", err.Error())
 	}
 
-	conn, err := pgx.Connect(context.Background(), cfg.GetDatabaseConnectionString())
+	conn, err := pgxpool.New(context.Background(), cfg.GetDatabaseConnectionString())
 
 	if err != nil {
 		log.Fatalf("[Lancer Error] Failed to connect to database (%v)", err)
 	}
 
-	defer conn.Close(context.Background())
+	defer conn.Close()
 
 	query := db.New(conn)
 

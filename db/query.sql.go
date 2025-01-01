@@ -209,6 +209,65 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteDocumentsByIds = `-- name: DeleteDocumentsByIds :many
+
+WITH deleted AS (
+    DELETE FROM uploaded_files
+    WHERE id = ANY($1::int[]) 
+    RETURNING id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata
+)
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM deleted
+`
+
+type DeleteDocumentsByIdsRow struct {
+	ID               int32
+	FileName         string
+	FilePath         string
+	FileSize         int64
+	FileType         pgtype.Text
+	UploadedBy       string
+	UploadedAt       pgtype.Timestamp
+	IsDeleted        pgtype.Bool
+	Checksum         pgtype.Text
+	Description      pgtype.Text
+	Provider         string
+	ProviderMetadata []byte
+}
+
+// Use ANY to match an array of IDs
+func (q *Queries) DeleteDocumentsByIds(ctx context.Context, dollar_1 []int32) ([]DeleteDocumentsByIdsRow, error) {
+	rows, err := q.db.Query(ctx, deleteDocumentsByIds, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteDocumentsByIdsRow
+	for rows.Next() {
+		var i DeleteDocumentsByIdsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions
 WHERE id = $1
@@ -1057,6 +1116,45 @@ SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at,
 
 func (q *Queries) ListUploadedFiles(ctx context.Context) ([]UploadedFile, error) {
 	rows, err := q.db.Query(ctx, listUploadedFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UploadedFile
+	for rows.Next() {
+		var i UploadedFile
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.FilePath,
+			&i.FileSize,
+			&i.FileType,
+			&i.UploadedBy,
+			&i.UploadedAt,
+			&i.IsDeleted,
+			&i.Checksum,
+			&i.Description,
+			&i.Provider,
+			&i.ProviderMetadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUploadedFilesByIds = `-- name: ListUploadedFilesByIds :many
+SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata 
+FROM uploaded_files
+WHERE id = ANY($1::int[])
+`
+
+func (q *Queries) ListUploadedFilesByIds(ctx context.Context, dollar_1 []int32) ([]UploadedFile, error) {
+	rows, err := q.db.Query(ctx, listUploadedFilesByIds, dollar_1)
 	if err != nil {
 		return nil, err
 	}

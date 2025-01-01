@@ -6,10 +6,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -101,6 +104,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		}
 
 		if err := s.tasks.CancelWithBaseTask(sessionInfo.TempPath, session.SessionID); err != nil {
+			fmt.Println(err.Error())
 			return err
 		}
 
@@ -124,6 +128,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		})
 
 		if err != nil {
+			log.Fatalf(err.Error())
 			return err
 		}
 
@@ -165,9 +170,56 @@ func (s *Services) serviceGetUploads(c echo.Context) error {
 	})
 }
 
+func (s *Services) serviceDeleteUploads(c echo.Context) error {
+	payload := new(types.UploadDeletePayload)
+
+	if err := utils.GetValidatedPayload(c, payload); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid payload",
+		})
+	}
+
+	uploadInfo, err := s.db.ListUploadedFilesByIds(context.Background(), payload.ID)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	var wg sync.WaitGroup
+	// var deleteErrors []string
+
+	for _, info := range uploadInfo {
+		wg.Add(1)
+		go func(info db.UploadedFile) {
+			defer wg.Done()
+
+			os.RemoveAll(info.FilePath)
+		}(info)
+	}
+
+	done := make(chan bool, len(uploadInfo))
+
+	for _, info := range uploadInfo {
+		go func() {
+			os.RemoveAll(info.FilePath)
+
+			done <- true
+		}()
+	}
+
+	wg.Wait()
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": fmt.Sprintf("%d files deleted", len(uploadInfo)),
+	})
+}
+
 func (s *Services) registerUploaderService() {
 	group := s.e.Group("/upload")
 
 	group.GET("", s.middlewareAdminAuthenticator(s.serviceGetUploads))
+	group.DELETE("", s.middlewareAdminAuthenticator(s.serviceDeleteUploads))
 	group.POST("", s.middlewareSessionAuthenticator(s.serviceHandlerChunkUploader))
 }

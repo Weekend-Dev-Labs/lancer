@@ -39,3 +39,7 @@ type AdminUserPayload struct {
 	Email    string `json:"email" validate:"email"`
 	Password string `json:"password" validate:"required"`
 }
+
+type UploadDeletePayload struct {
+	ID []int32 `json:"id" validate:"required"`
+}

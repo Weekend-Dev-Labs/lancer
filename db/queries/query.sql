@@ -82,6 +82,19 @@ RETURNING *;
 -- name: ListUploadedFiles :many
 SELECT * FROM uploaded_files;
 
+-- name: ListUploadedFilesByIds :many
+SELECT * 
+FROM uploaded_files
+WHERE id = ANY($1::int[]);  -- Use ANY to match an array of IDs
+
+-- name: DeleteDocumentsByIds :many
+WITH deleted AS (
+    DELETE FROM uploaded_files
+    WHERE id = ANY($1::int[]) 
+    RETURNING id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata
+)
+SELECT * FROM deleted;
+
 -- name: GetUploadedFileByID :one
 SELECT * FROM uploaded_files
 WHERE id = $1;
