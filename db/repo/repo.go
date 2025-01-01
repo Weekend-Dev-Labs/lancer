@@ -2,7 +2,9 @@ package repo
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -229,4 +231,71 @@ func (r *Repo) UpdateSessionById(id string, session *types.SessionInfo) error {
 	}
 
 	return nil
+}
+
+func (r *Repo) GetSessions(params *db.PaginateSessionsParams) []*types.SessionInfo {
+	if r.config.Redis != "" {
+		var cursor uint64
+		var keys []string
+		var err error
+
+		var sessionInfo []*types.SessionInfo
+
+		for {
+			keys, cursor, err = r.redisCache.Client.Scan(context.Background(), cursor, "session", int64(params.Limit)).Result()
+
+			if err != nil {
+				return nil
+			}
+
+			for _, key := range keys {
+				fmt.Println(key)
+
+				splitedKey := strings.Split(key, ":")
+
+				if len(splitedKey) == 2 {
+					sessionId := splitedKey[1]
+					session, err := r.redisCache.GetSessionInfo(sessionId)
+
+					if err != nil {
+						return nil
+					}
+
+					sessionInfo = append(sessionInfo, session)
+				}
+			}
+
+			if cursor == 0 {
+				break
+			}
+		}
+
+		return sessionInfo
+	}
+
+	var sessionInfo []*types.SessionInfo
+
+	sessions, err := r.db.PaginateSessions(context.TODO(), db.PaginateSessionsParams{
+		Limit:  100,
+		Offset: 0,
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	for _, val := range sessions {
+		sessionInfo = append(sessionInfo, &types.SessionInfo{
+			ID:           val.ID.String(),
+			FileSize:     val.FileSize,
+			ChunkSize:    val.ChunkSize,
+			MaxChunk:     val.MaxChunk,
+			FileName:     val.FileName.String,
+			TempPath:     val.TempPath.String,
+			OwnerID:      val.OwnerID.String,
+			CurrentChunk: val.CurrentChunk.Int64,
+		})
+	}
+
+	return sessionInfo
 }

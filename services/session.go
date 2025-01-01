@@ -138,14 +138,10 @@ func (s *Services) serviceEndSession(c echo.Context) error {
 
 func (s *Services) serviceGetSessions(c echo.Context) error {
 
-	sessions, err := s.db.PaginateSessions(context.TODO(), db.PaginateSessionsParams{
-		Limit:  100,
-		Offset: 0,
+	sessions := s.repo.GetSessions(&db.PaginateSessionsParams{
+		Limit:  int32(10),
+		Offset: int32(0),
 	})
-
-	if err != nil {
-		return err
-	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"sessions": sessions,
