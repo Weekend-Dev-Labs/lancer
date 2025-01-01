@@ -49,7 +49,7 @@ func (s *Services) serviceLoginAdmin(c echo.Context) error {
 }
 
 func (s *Services) serviceCheckAdmin(c echo.Context) error {
-	return c.String(http.StatusAccepted, "Correct Token")
+	return c.String(http.StatusAccepted, "")
 }
 
 func (s *Services) registerAdminService() {

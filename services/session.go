@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
+	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
 	"github.com/weekend-dev-labs/lancer/utils"
 )
@@ -135,11 +136,29 @@ func (s *Services) serviceEndSession(c echo.Context) error {
 
 }
 
+func (s *Services) serviceGetSessions(c echo.Context) error {
+
+	sessions, err := s.db.PaginateSessions(context.TODO(), db.PaginateSessionsParams{
+		Limit:  100,
+		Offset: 0,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"sessions": sessions,
+	})
+}
+
 func (s *Services) registerSessionServicer() {
 	group := s.e.Group("/sessions")
 
-	group.Use(s.middlewareAuthenticate)
+	// group.Use(s.middlewareAuthenticate)
 
-	group.POST("", s.serviceCreateSession)
-	group.POST("/end", s.serviceEndSession)
+	group.GET("", s.middlewareAdminAuthenticator(s.serviceGetSessions))
+
+	group.POST("", s.middlewareAuthenticate(s.serviceCreateSession))
+	group.POST("/end", s.middlewareAuthenticate(s.serviceEndSession))
 }
