@@ -1,11 +1,19 @@
 package types
 
 type ContextKeys string
+type AuthKeys string
 
 const (
 	ContextAuthInfo    = ContextKeys("auth-info")
 	ContextSessionInfo = ContextKeys("session-info")
 	ContextWebToken    = ContextKeys("webtoken-info")
+)
+
+const (
+	AuthWebToken          = AuthKeys("web-token")
+	AuthSessionToken      = AuthKeys("session-token")
+	AuthClientServerToken = AuthKeys("client-token")
+	AuthServerCredentials = AuthKeys("server-credentials")
 )
 
 type CreateSessionPayload struct {

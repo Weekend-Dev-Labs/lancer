@@ -15,75 +15,188 @@ type LancerValidator struct {
 	Validator *validator.Validate
 }
 
-func (s *Services) middlewareAuthenticate(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *Services) authClientServerToken(c echo.Context) (echo.Context, bool) {
+	authHeder := c.Request().Header.Get("authorization")
+
+	splitedHeader := strings.Split(authHeder, " ")
+
+	fmt.Println(splitedHeader)
+
+	if len(splitedHeader) != 2 {
+		return c, false
+	}
+
+	c.Set(string(types.ContextAuthInfo), &authInfo{
+		ID: "helloo",
+	})
+
+	return c, true
+}
+
+func (s *Services) authSessionToken(c echo.Context) (echo.Context, bool) {
+	sessionHeader := c.Request().Header.Get("x-session-token")
+
+	// if sessionHeader == "" {
+	// 	return c.JSON(http.StatusForbidden, map[string]string{
+	// 		"error": "invalid session to upload file",
+	// 	})
+	// }
+
+	if sessionHeader == "" {
+		return c, false
+	}
+
+	sessionInfo, err := utils.GetSessionInfo(sessionHeader, "secret key")
+
+	if err != nil {
+		return c, false
+	}
+
+	c.Set(string(types.ContextSessionInfo), sessionInfo)
+
+	return c, true
+}
+
+func (s *Services) authWebToken(c echo.Context) (echo.Context, bool) {
+	adminHeader := c.Request().Header.Get("x-web-token")
+
+	if adminHeader == "" {
+		return c, false
+	}
+
+	adminInfo, err := utils.GetAdminInfo(adminHeader, s.cfg.AdminTokenSigningSecret)
+
+	if err != nil {
+		return c, false
+	}
+
+	c.Set(string(types.ContextWebToken), adminInfo)
+
+	return c, true
+}
+
+func (s *Services) middlewareAuth(authType []types.AuthKeys, next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		authHeder := c.Request().Header.Get("authorization")
+		var isTokenValid bool
+		for _, auth := range authType {
+			switch auth {
+			case types.AuthClientServerToken:
+				handlerC, isTokenCorrect := s.authClientServerToken(c)
 
-		splitedHeader := strings.Split(authHeder, " ")
+				if !isTokenCorrect {
+					return c.JSON(http.StatusForbidden, map[string]string{
+						"err": "invalid auth header or auth header not present",
+					})
+				}
+				isTokenValid = true
 
-		fmt.Println(splitedHeader)
+				return next(handlerC)
 
-		if len(splitedHeader) != 2 {
+			case types.AuthSessionToken:
+				handlerC, isTokenCorrect := s.authSessionToken(c)
+
+				if isTokenCorrect {
+					return next(handlerC)
+				}
+
+				isTokenValid = false
+
+			case types.AuthWebToken:
+				handlerC, isTokenCorrect := s.authWebToken(c)
+
+				if isTokenCorrect {
+					return next(handlerC)
+				}
+
+				isTokenValid = false
+			}
+		}
+
+		if !isTokenValid {
 			return c.JSON(http.StatusForbidden, map[string]string{
-				"err": "invalid auth header or auth header not present",
+				"error": "invalid tokens to access the endpoint",
 			})
 		}
 
-		c.Set(string(types.ContextAuthInfo), &authInfo{
-			ID: "helloo",
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "something went wrong",
 		})
-
-		return next(c)
 	}
 }
 
-func (s *Services) middlewareSessionAuthenticator(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		sessionHeader := c.Request().Header.Get("x-session-token")
+// <------------ PREVIOUS AUTH MIDDLEWARES ------------------------------>
 
-		if sessionHeader == "" {
-			return c.JSON(http.StatusForbidden, map[string]string{
-				"error": "invalid session to upload file",
-			})
-		}
+// func (s *Services) middlewareSessionAuthenticator(next echo.HandlerFunc) echo.HandlerFunc {
+// 	return func(c echo.Context) error {
+// 		sessionHeader := c.Request().Header.Get("x-session-token")
 
-		sessionInfo, err := utils.GetSessionInfo(sessionHeader, "secret key")
+// 		if sessionHeader == "" {
+// 			return c.JSON(http.StatusForbidden, map[string]string{
+// 				"error": "invalid session to upload file",
+// 			})
+// 		}
 
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "invalid session token or session expired",
-			})
-		}
+// 		sessionInfo, err := utils.GetSessionInfo(sessionHeader, "secret key")
 
-		c.Set(string(types.ContextSessionInfo), sessionInfo)
+// 		if err != nil {
+// 			return c.JSON(http.StatusBadRequest, map[string]string{
+// 				"error": "invalid session token or session expired",
+// 			})
+// 		}
 
-		return next(c)
-	}
-}
+// 		c.Set(string(types.ContextSessionInfo), sessionInfo)
 
-func (s *Services) middlewareAdminAuthenticator(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		adminHeader := c.Request().Header.Get("x-web-token")
+// 		return next(c)
+// 	}
+// }
 
-		if adminHeader == "" {
-			return c.JSON(http.StatusForbidden, map[string]string{
-				"error": "invalid web / admin token",
-			})
-		}
+// func (s *Services) middlewareAdminAuthenticator(next echo.HandlerFunc) echo.HandlerFunc {
+// 	return func(c echo.Context) error {
+// 		adminHeader := c.Request().Header.Get("x-web-token")
 
-		adminInfo, err := utils.GetAdminInfo(adminHeader, s.cfg.AdminTokenSigningSecret)
+// 		if adminHeader == "" {
+// 			return c.JSON(http.StatusForbidden, map[string]string{
+// 				"error": "invalid web / admin token",
+// 			})
+// 		}
 
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "invalid web token or token expired",
-			})
-		}
+// 		adminInfo, err := utils.GetAdminInfo(adminHeader, s.cfg.AdminTokenSigningSecret)
 
-		c.Set(string(types.ContextWebToken), adminInfo)
+// 		if err != nil {
+// 			return c.JSON(http.StatusBadRequest, map[string]string{
+// 				"error": "invalid web token or token expired",
+// 			})
+// 		}
 
-		return next(c)
-	}
-}
+// 		c.Set(string(types.ContextWebToken), adminInfo)
+
+// 		return next(c)
+// 	}
+// }
+
+// func (s *Services) middlewareAuthenticate(next echo.HandlerFunc) echo.HandlerFunc {
+// 	return func(c echo.Context) error {
+// 		authHeder := c.Request().Header.Get("authorization")
+
+// 		splitedHeader := strings.Split(authHeder, " ")
+
+// 		fmt.Println(splitedHeader)
+
+// 		if len(splitedHeader) != 2 {
+// 			return c.JSON(http.StatusForbidden, map[string]string{
+// 				"err": "invalid auth header or auth header not present",
+// 			})
+// 		}
+
+// 		c.Set(string(types.ContextAuthInfo), &authInfo{
+// 			ID: "helloo",
+// 		})
+
+// 		return next(c)
+// 	}
+// }
+
+// <------------ PREVIOUS AUTH MIDDLEWARES ------------------------------>
 
 func (lv *LancerValidator) Validate(i interface{}) error {
 	if err := lv.Validator.Struct(i); err != nil {

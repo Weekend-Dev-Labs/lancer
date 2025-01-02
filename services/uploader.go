@@ -199,16 +199,6 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 		}(info)
 	}
 
-	done := make(chan bool, len(uploadInfo))
-
-	for _, info := range uploadInfo {
-		go func() {
-			os.RemoveAll(info.FilePath)
-
-			done <- true
-		}()
-	}
-
 	wg.Wait()
 
 	return c.JSON(http.StatusOK, map[string]string{
@@ -219,7 +209,7 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 func (s *Services) registerUploaderService() {
 	group := s.e.Group("/upload")
 
-	group.GET("", s.middlewareAdminAuthenticator(s.serviceGetUploads))
-	group.DELETE("", s.middlewareAdminAuthenticator(s.serviceDeleteUploads))
-	group.POST("", s.middlewareSessionAuthenticator(s.serviceHandlerChunkUploader))
+	group.GET("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceGetUploads))
+	group.DELETE("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceDeleteUploads))
+	group.POST("", s.middlewareAuth([]types.AuthKeys{types.AuthSessionToken}, s.serviceHandlerChunkUploader))
 }

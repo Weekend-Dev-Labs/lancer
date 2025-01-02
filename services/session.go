@@ -153,8 +153,8 @@ func (s *Services) registerSessionServicer() {
 
 	// group.Use(s.middlewareAuthenticate)
 
-	group.GET("", s.middlewareAdminAuthenticator(s.serviceGetSessions))
+	group.GET("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken}, s.serviceGetSessions))
 
-	group.POST("", s.middlewareAuthenticate(s.serviceCreateSession))
-	group.POST("/end", s.middlewareAuthenticate(s.serviceEndSession))
+	group.POST("", s.middlewareAuth([]types.AuthKeys{types.AuthClientServerToken}, s.serviceCreateSession))
+	group.POST("/end", s.middlewareAuth([]types.AuthKeys{types.AuthClientServerToken}, s.serviceEndSession))
 }

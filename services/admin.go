@@ -56,5 +56,5 @@ func (s *Services) registerAdminService() {
 	group := s.e.Group("/admin")
 
 	group.POST("/login", s.serviceLoginAdmin)
-	group.GET("/check", s.middlewareAdminAuthenticator(s.serviceCheckAdmin))
+	group.GET("/check", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken}, s.serviceCheckAdmin))
 }
