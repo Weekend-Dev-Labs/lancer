@@ -18,7 +18,8 @@ const (
 	EventSessionCancelled  = WebhookEvent("SESSION_CANCELLED")
 	EventSessionCompleteed = WebhookEvent("SESSION_COMPLETED")
 
-	EventFileUpload = WebhookEvent("FILE_UPLOAD_")
+	EventFileUpload = WebhookEvent("FILE_UPLOAD")
+	EventFileDelete = WebhookEvent("FILE_DELETE")
 )
 
 func NewWebhookNotifier(endpoint string) *Webhook {

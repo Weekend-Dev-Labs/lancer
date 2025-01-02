@@ -111,7 +111,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		ext := filepath.Ext(sessionInfo.FileName)
 		mimeType := mime.TypeByExtension(ext)
 
-		_, err = s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
+		file, err := s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
 			FileName: sessionInfo.FileName,
 			FilePath: filePath,
 			FileSize: sessionInfo.FileSize,
@@ -131,6 +131,8 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			log.Fatalf(err.Error())
 			return err
 		}
+
+		s.webhook.SendEvent(EventFileUpload, file)
 
 		return c.JSON(http.StatusAccepted, map[string]string{
 			"success": checksum,
@@ -200,6 +202,8 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 	}
 
 	wg.Wait()
+
+	s.webhook.SendEvent(EventFileDelete, uploadInfo)
 
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": fmt.Sprintf("%d files deleted", len(uploadInfo)),
