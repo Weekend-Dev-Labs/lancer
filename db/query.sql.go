@@ -209,6 +209,25 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const decrementFileCountAndSize = `-- name: DecrementFileCountAndSize :exec
+UPDATE metrics
+SET total_file_count = total_file_count - $1,
+    total_file_size = total_file_size - $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3
+`
+
+type DecrementFileCountAndSizeParams struct {
+	TotalFileCount pgtype.Int8
+	TotalFileSize  pgtype.Int8
+	ID             pgtype.UUID
+}
+
+func (q *Queries) DecrementFileCountAndSize(ctx context.Context, arg DecrementFileCountAndSizeParams) error {
+	_, err := q.db.Exec(ctx, decrementFileCountAndSize, arg.TotalFileCount, arg.TotalFileSize, arg.ID)
+	return err
+}
+
 const deleteDocumentsByIds = `-- name: DeleteDocumentsByIds :many
 
 WITH deleted AS (
@@ -220,7 +239,7 @@ SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at,
 `
 
 type DeleteDocumentsByIdsRow struct {
-	ID               int32
+	ID               pgtype.UUID
 	FileName         string
 	FilePath         string
 	FileSize         int64
@@ -266,6 +285,16 @@ func (q *Queries) DeleteDocumentsByIds(ctx context.Context, dollar_1 []int32) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const deleteMetrics = `-- name: DeleteMetrics :exec
+DELETE FROM metrics
+WHERE id = $1
+`
+
+func (q *Queries) DeleteMetrics(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteMetrics, id)
+	return err
 }
 
 const deleteSession = `-- name: DeleteSession :exec
@@ -804,6 +833,30 @@ func (q *Queries) FindUsersAfterDate(ctx context.Context, createdAt pgtype.Times
 	return items, nil
 }
 
+const getFirstCreatedMetrics = `-- name: GetFirstCreatedMetrics :one
+SELECT id, total_file_size, total_file_count, files_by_mimetype, largest_file_size, smallest_file_size, average_file_size, total_deleted_files, last_updated 
+FROM metrics
+ORDER BY id ASC
+LIMIT 1
+`
+
+func (q *Queries) GetFirstCreatedMetrics(ctx context.Context) (Metric, error) {
+	row := q.db.QueryRow(ctx, getFirstCreatedMetrics)
+	var i Metric
+	err := row.Scan(
+		&i.ID,
+		&i.TotalFileSize,
+		&i.TotalFileCount,
+		&i.FilesByMimetype,
+		&i.LargestFileSize,
+		&i.SmallestFileSize,
+		&i.AverageFileSize,
+		&i.TotalDeletedFiles,
+		&i.LastUpdated,
+	)
+	return i, err
+}
+
 const getInactiveUsers = `-- name: GetInactiveUsers :many
 SELECT id, email, password, created_at, last_login FROM users
 WHERE last_login < $1
@@ -861,6 +914,46 @@ func (q *Queries) GetLargestFile(ctx context.Context) (UploadedFile, error) {
 	return i, err
 }
 
+const getMetrics = `-- name: GetMetrics :one
+SELECT id, total_file_size, total_file_count, files_by_mimetype, largest_file_size, smallest_file_size, average_file_size, total_deleted_files, last_updated FROM metrics
+WHERE id = $1
+`
+
+func (q *Queries) GetMetrics(ctx context.Context, id pgtype.UUID) (Metric, error) {
+	row := q.db.QueryRow(ctx, getMetrics, id)
+	var i Metric
+	err := row.Scan(
+		&i.ID,
+		&i.TotalFileSize,
+		&i.TotalFileCount,
+		&i.FilesByMimetype,
+		&i.LargestFileSize,
+		&i.SmallestFileSize,
+		&i.AverageFileSize,
+		&i.TotalDeletedFiles,
+		&i.LastUpdated,
+	)
+	return i, err
+}
+
+const getMetricsByMimetype = `-- name: GetMetricsByMimetype :one
+SELECT files_by_mimetype->>$1 AS count_or_size
+FROM metrics
+WHERE id = $2
+`
+
+type GetMetricsByMimetypeParams struct {
+	FilesByMimetype []byte
+	ID              pgtype.UUID
+}
+
+func (q *Queries) GetMetricsByMimetype(ctx context.Context, arg GetMetricsByMimetypeParams) (interface{}, error) {
+	row := q.db.QueryRow(ctx, getMetricsByMimetype, arg.FilesByMimetype, arg.ID)
+	var count_or_size interface{}
+	err := row.Scan(&count_or_size)
+	return count_or_size, err
+}
+
 const getRecentUsers = `-- name: GetRecentUsers :many
 SELECT id, email, password, created_at, last_login FROM users
 ORDER BY created_at DESC
@@ -898,7 +991,7 @@ SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at,
 WHERE id = $1
 `
 
-func (q *Queries) GetUploadedFileByID(ctx context.Context, id int32) (UploadedFile, error) {
+func (q *Queries) GetUploadedFileByID(ctx context.Context, id pgtype.UUID) (UploadedFile, error) {
 	row := q.db.QueryRow(ctx, getUploadedFileByID, id)
 	var i UploadedFile
 	err := row.Scan(
@@ -959,9 +1052,73 @@ DELETE FROM uploaded_files
 WHERE id = $1
 `
 
-func (q *Queries) HardDeleteUploadedFile(ctx context.Context, id int32) error {
+func (q *Queries) HardDeleteUploadedFile(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, hardDeleteUploadedFile, id)
 	return err
+}
+
+const incrementFileCountAndSize = `-- name: IncrementFileCountAndSize :exec
+UPDATE metrics
+SET total_file_count = total_file_count + $1,
+    total_file_size = total_file_size + $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3
+`
+
+type IncrementFileCountAndSizeParams struct {
+	TotalFileCount pgtype.Int8
+	TotalFileSize  pgtype.Int8
+	ID             pgtype.UUID
+}
+
+func (q *Queries) IncrementFileCountAndSize(ctx context.Context, arg IncrementFileCountAndSizeParams) error {
+	_, err := q.db.Exec(ctx, incrementFileCountAndSize, arg.TotalFileCount, arg.TotalFileSize, arg.ID)
+	return err
+}
+
+const insertMetrics = `-- name: InsertMetrics :one
+INSERT INTO metrics (
+    total_file_size, total_file_count, files_by_mimetype, largest_file_size, smallest_file_size, average_file_size, total_deleted_files
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7
+)
+RETURNING id, total_file_size, total_file_count, files_by_mimetype, largest_file_size, smallest_file_size, average_file_size, total_deleted_files, last_updated
+`
+
+type InsertMetricsParams struct {
+	TotalFileSize     pgtype.Int8
+	TotalFileCount    pgtype.Int8
+	FilesByMimetype   []byte
+	LargestFileSize   pgtype.Int8
+	SmallestFileSize  pgtype.Int8
+	AverageFileSize   pgtype.Numeric
+	TotalDeletedFiles pgtype.Int8
+}
+
+func (q *Queries) InsertMetrics(ctx context.Context, arg InsertMetricsParams) (Metric, error) {
+	row := q.db.QueryRow(ctx, insertMetrics,
+		arg.TotalFileSize,
+		arg.TotalFileCount,
+		arg.FilesByMimetype,
+		arg.LargestFileSize,
+		arg.SmallestFileSize,
+		arg.AverageFileSize,
+		arg.TotalDeletedFiles,
+	)
+	var i Metric
+	err := row.Scan(
+		&i.ID,
+		&i.TotalFileSize,
+		&i.TotalFileCount,
+		&i.FilesByMimetype,
+		&i.LargestFileSize,
+		&i.SmallestFileSize,
+		&i.AverageFileSize,
+		&i.TotalDeletedFiles,
+		&i.LastUpdated,
+	)
+	return i, err
 }
 
 const listActiveFiles = `-- name: ListActiveFiles :many
@@ -1383,7 +1540,7 @@ SET is_deleted = TRUE
 WHERE id = $1
 `
 
-func (q *Queries) SoftDeleteUploadedFile(ctx context.Context, id int32) error {
+func (q *Queries) SoftDeleteUploadedFile(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, softDeleteUploadedFile, id)
 	return err
 }
@@ -1408,6 +1565,116 @@ func (q *Queries) TotalUploadFileSize(ctx context.Context) (int64, error) {
 	var total_file_size int64
 	err := row.Scan(&total_file_size)
 	return total_file_size, err
+}
+
+const updateAllMetrics = `-- name: UpdateAllMetrics :exec
+UPDATE metrics
+SET total_file_size = $1,
+    total_file_count = $2,
+    files_by_mimetype = $3,
+    largest_file_size = $4,
+    smallest_file_size = $5,
+    average_file_size = $6,
+    total_deleted_files = $7,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $8
+`
+
+type UpdateAllMetricsParams struct {
+	TotalFileSize     pgtype.Int8
+	TotalFileCount    pgtype.Int8
+	FilesByMimetype   []byte
+	LargestFileSize   pgtype.Int8
+	SmallestFileSize  pgtype.Int8
+	AverageFileSize   pgtype.Numeric
+	TotalDeletedFiles pgtype.Int8
+	ID                pgtype.UUID
+}
+
+func (q *Queries) UpdateAllMetrics(ctx context.Context, arg UpdateAllMetricsParams) error {
+	_, err := q.db.Exec(ctx, updateAllMetrics,
+		arg.TotalFileSize,
+		arg.TotalFileCount,
+		arg.FilesByMimetype,
+		arg.LargestFileSize,
+		arg.SmallestFileSize,
+		arg.AverageFileSize,
+		arg.TotalDeletedFiles,
+		arg.ID,
+	)
+	return err
+}
+
+const updateAverageFileSize = `-- name: UpdateAverageFileSize :exec
+UPDATE metrics
+SET average_file_size = $1,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $2
+`
+
+type UpdateAverageFileSizeParams struct {
+	AverageFileSize pgtype.Numeric
+	ID              pgtype.UUID
+}
+
+func (q *Queries) UpdateAverageFileSize(ctx context.Context, arg UpdateAverageFileSizeParams) error {
+	_, err := q.db.Exec(ctx, updateAverageFileSize, arg.AverageFileSize, arg.ID)
+	return err
+}
+
+const updateFileSizeAndCount = `-- name: UpdateFileSizeAndCount :exec
+UPDATE metrics
+SET total_file_size = $1,
+    total_file_count = $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3
+`
+
+type UpdateFileSizeAndCountParams struct {
+	TotalFileSize  pgtype.Int8
+	TotalFileCount pgtype.Int8
+	ID             pgtype.UUID
+}
+
+func (q *Queries) UpdateFileSizeAndCount(ctx context.Context, arg UpdateFileSizeAndCountParams) error {
+	_, err := q.db.Exec(ctx, updateFileSizeAndCount, arg.TotalFileSize, arg.TotalFileCount, arg.ID)
+	return err
+}
+
+const updateFileSizes = `-- name: UpdateFileSizes :exec
+UPDATE metrics
+SET largest_file_size = $1,
+    smallest_file_size = $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3
+`
+
+type UpdateFileSizesParams struct {
+	LargestFileSize  pgtype.Int8
+	SmallestFileSize pgtype.Int8
+	ID               pgtype.UUID
+}
+
+func (q *Queries) UpdateFileSizes(ctx context.Context, arg UpdateFileSizesParams) error {
+	_, err := q.db.Exec(ctx, updateFileSizes, arg.LargestFileSize, arg.SmallestFileSize, arg.ID)
+	return err
+}
+
+const updateFilesByMimetype = `-- name: UpdateFilesByMimetype :exec
+UPDATE metrics
+SET files_by_mimetype = $1,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $2
+`
+
+type UpdateFilesByMimetypeParams struct {
+	FilesByMimetype []byte
+	ID              pgtype.UUID
+}
+
+func (q *Queries) UpdateFilesByMimetype(ctx context.Context, arg UpdateFilesByMimetypeParams) error {
+	_, err := q.db.Exec(ctx, updateFilesByMimetype, arg.FilesByMimetype, arg.ID)
+	return err
 }
 
 const updateLastLogin = `-- name: UpdateLastLogin :exec
@@ -1444,6 +1711,23 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) er
 	return err
 }
 
+const updateTotalDeletedFiles = `-- name: UpdateTotalDeletedFiles :exec
+UPDATE metrics
+SET total_deleted_files = $1,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $2
+`
+
+type UpdateTotalDeletedFilesParams struct {
+	TotalDeletedFiles pgtype.Int8
+	ID                pgtype.UUID
+}
+
+func (q *Queries) UpdateTotalDeletedFiles(ctx context.Context, arg UpdateTotalDeletedFilesParams) error {
+	_, err := q.db.Exec(ctx, updateTotalDeletedFiles, arg.TotalDeletedFiles, arg.ID)
+	return err
+}
+
 const updateUploadedFileMetadata = `-- name: UpdateUploadedFileMetadata :exec
 UPDATE uploaded_files
 SET description = $1, provider_metadata = $2
@@ -1453,7 +1737,7 @@ WHERE id = $3
 type UpdateUploadedFileMetadataParams struct {
 	Description      pgtype.Text
 	ProviderMetadata []byte
-	ID               int32
+	ID               pgtype.UUID
 }
 
 func (q *Queries) UpdateUploadedFileMetadata(ctx context.Context, arg UpdateUploadedFileMetadataParams) error {

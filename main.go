@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -22,8 +21,6 @@ func main() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 
 	cfg := config.ParseFlags()
-
-	fmt.Println(cfg.Database.Migrate)
 
 	if cfg.Database.Migrate {
 		db.RunMigration(cfg.GetDatabaseConnectionString())
@@ -47,6 +44,7 @@ func main() {
 	redisCache := cache.NewCache(cfg.Redis)
 
 	repo.CreateInitialUser(cfg, query)
+	repo.CreateOrGetInitialMetrics(cfg, query)
 
 	if redisCache == nil {
 		log.Printf("[LANCER WARNING] Redis Server Configuration Missing. Using Database to store sessions.")

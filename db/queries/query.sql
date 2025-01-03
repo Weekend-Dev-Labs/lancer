@@ -225,3 +225,89 @@ LIMIT $1 OFFSET $2;
 SELECT EXISTS (
     SELECT 1 FROM users WHERE email = $1
 ) AS email_exists;
+
+-- name: InsertMetrics :one
+INSERT INTO metrics (
+    total_file_size, total_file_count, files_by_mimetype, largest_file_size, smallest_file_size, average_file_size, total_deleted_files
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7
+)
+RETURNING *;
+
+-- name: GetMetrics :one
+SELECT * FROM metrics
+WHERE id = $1;
+
+-- name: UpdateFileSizeAndCount :exec
+UPDATE metrics
+SET total_file_size = $1,
+    total_file_count = $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3;
+
+-- name: UpdateFilesByMimetype :exec
+UPDATE metrics
+SET files_by_mimetype = $1,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $2;
+
+-- name: UpdateFileSizes :exec
+UPDATE metrics
+SET largest_file_size = $1,
+    smallest_file_size = $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3;
+
+-- name: UpdateAverageFileSize :exec
+UPDATE metrics
+SET average_file_size = $1,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $2;
+
+-- name: UpdateTotalDeletedFiles :exec
+UPDATE metrics
+SET total_deleted_files = $1,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $2;
+
+-- name: IncrementFileCountAndSize :exec
+UPDATE metrics
+SET total_file_count = total_file_count + $1,
+    total_file_size = total_file_size + $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3;
+
+-- name: DecrementFileCountAndSize :exec
+UPDATE metrics
+SET total_file_count = total_file_count - $1,
+    total_file_size = total_file_size - $2,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $3;
+
+-- name: UpdateAllMetrics :exec
+UPDATE metrics
+SET total_file_size = $1,
+    total_file_count = $2,
+    files_by_mimetype = $3,
+    largest_file_size = $4,
+    smallest_file_size = $5,
+    average_file_size = $6,
+    total_deleted_files = $7,
+    last_updated = CURRENT_TIMESTAMP
+WHERE id = $8;
+
+-- name: GetMetricsByMimetype :one
+SELECT files_by_mimetype->>$1 AS count_or_size
+FROM metrics
+WHERE id = $2;
+
+-- name: DeleteMetrics :exec
+DELETE FROM metrics
+WHERE id = $1;
+
+-- name: GetFirstCreatedMetrics :one
+SELECT * 
+FROM metrics
+ORDER BY id ASC
+LIMIT 1;

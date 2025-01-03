@@ -8,6 +8,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Metric struct {
+	ID                pgtype.UUID
+	TotalFileSize     pgtype.Int8
+	TotalFileCount    pgtype.Int8
+	FilesByMimetype   []byte
+	LargestFileSize   pgtype.Int8
+	SmallestFileSize  pgtype.Int8
+	AverageFileSize   pgtype.Numeric
+	TotalDeletedFiles pgtype.Int8
+	LastUpdated       pgtype.Timestamp
+}
+
 type Session struct {
 	ID           pgtype.UUID
 	FileSize     int64
@@ -21,7 +33,7 @@ type Session struct {
 }
 
 type UploadedFile struct {
-	ID               int32
+	ID               pgtype.UUID
 	FileName         string
 	FilePath         string
 	FileSize         int64

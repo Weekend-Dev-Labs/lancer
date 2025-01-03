@@ -13,7 +13,7 @@ CREATE TABLE
 
 CREATE TABLE
     IF NOT EXISTS uploaded_files (
-        id SERIAL PRIMARY KEY,
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
         file_name VARCHAR(255) NOT NULL,
         file_path TEXT NOT NULL,
         file_size BIGINT NOT NULL,
@@ -35,6 +35,18 @@ CREATE TABLE
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+CREATE TABLE IF NOT EXISTS metrics (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+    total_file_size BIGINT DEFAULT 0,
+    total_file_count BIGINT DEFAULT 0,
+    files_by_mimetype JSONB DEFAULT '{}'::JSONB,
+    largest_file_size BIGINT,
+    smallest_file_size BIGINT,
+    average_file_size NUMERIC,
+    total_deleted_files BIGINT DEFAULT 0,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE INDEX idx_uploaded_files_provider ON uploaded_files (provider);
 

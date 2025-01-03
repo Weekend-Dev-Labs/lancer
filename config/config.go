@@ -33,6 +33,8 @@ type LancerConfig struct {
 		Email    string `yaml:"email"`
 		Password string `yaml:"password"`
 	}
+
+	MetricsID string
 }
 
 func ParseFlags() *LancerConfig {

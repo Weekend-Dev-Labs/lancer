@@ -60,6 +60,22 @@ func CreateInitialUser(cfg *config.LancerConfig, query *db.Queries) {
 	}
 }
 
+func CreateOrGetInitialMetrics(cfg *config.LancerConfig, query *db.Queries) {
+	metrics, err := query.GetFirstCreatedMetrics(context.Background())
+
+	if err != nil {
+		newMetrics, err := query.InsertMetrics(context.TODO(), db.InsertMetricsParams{})
+
+		if err != nil {
+			log.Fatalf("[Lancer Error] Failed to create metrics for the app (%v)", err)
+		}
+
+		cfg.MetricsID = newMetrics.ID.String()
+	}
+
+	cfg.MetricsID = metrics.ID.String()
+}
+
 func (r *Repo) getTempPath(id string, filename string) string {
 	return r.config.Store.Local.Temp + "/" + id + filename
 }
