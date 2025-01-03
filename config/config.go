@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,7 +35,7 @@ type LancerConfig struct {
 		Password string `yaml:"password"`
 	}
 
-	MetricsID string
+	MetricsID uuid.UUID
 }
 
 func ParseFlags() *LancerConfig {

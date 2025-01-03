@@ -1,5 +1,7 @@
 package types
 
+import "github.com/google/uuid"
+
 type ContextKeys string
 type AuthKeys string
 
@@ -49,5 +51,5 @@ type AdminUserPayload struct {
 }
 
 type UploadDeletePayload struct {
-	ID []int32 `json:"id" validate:"required"`
+	ID []uuid.UUID `json:"id" validate:"required"`
 }

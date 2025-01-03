@@ -70,10 +70,10 @@ func CreateOrGetInitialMetrics(cfg *config.LancerConfig, query *db.Queries) {
 			log.Fatalf("[Lancer Error] Failed to create metrics for the app (%v)", err)
 		}
 
-		cfg.MetricsID = newMetrics.ID.String()
+		cfg.MetricsID = newMetrics.ID
 	}
 
-	cfg.MetricsID = metrics.ID.String()
+	cfg.MetricsID = metrics.ID
 }
 
 func (r *Repo) getTempPath(id string, filename string) string {

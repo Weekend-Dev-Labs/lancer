@@ -5,18 +5,19 @@
 package db
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Metric struct {
-	ID                pgtype.UUID
-	TotalFileSize     pgtype.Int8
-	TotalFileCount    pgtype.Int8
+	ID                uuid.UUID
+	TotalFileSize     int64
+	TotalFileCount    int64
 	FilesByMimetype   []byte
-	LargestFileSize   pgtype.Int8
-	SmallestFileSize  pgtype.Int8
+	LargestFileSize   int64
+	SmallestFileSize  int64
 	AverageFileSize   pgtype.Numeric
-	TotalDeletedFiles pgtype.Int8
+	TotalDeletedFiles int64
 	LastUpdated       pgtype.Timestamp
 }
 
@@ -33,7 +34,7 @@ type Session struct {
 }
 
 type UploadedFile struct {
-	ID               pgtype.UUID
+	ID               uuid.UUID
 	FileName         string
 	FilePath         string
 	FileSize         int64

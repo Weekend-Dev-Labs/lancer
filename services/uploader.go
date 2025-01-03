@@ -17,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
 	"github.com/weekend-dev-labs/lancer/utils"
@@ -132,6 +133,19 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			return err
 		}
 
+		if err := s.db.IncrementFileCountAndSize(context.TODO(), db.IncrementFileCountAndSizeParams{
+			TotalFileCount: 1,
+			TotalFileSize:  file.FileSize,
+			ID:             s.cfg.MetricsID,
+		}); err != nil {
+
+			fmt.Printf("\n\n[LANCER ERROR ] %v\n\n", err.Error())
+
+			s.logger.Log(logrus.ErrorLevel, map[string]string{
+				"error": err.Error(),
+			})
+		}
+
 		s.webhook.SendEvent(EventFileUpload, file)
 
 		return c.JSON(http.StatusAccepted, map[string]string{
@@ -176,12 +190,13 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 	payload := new(types.UploadDeletePayload)
 
 	if err := utils.GetValidatedPayload(c, payload); err != nil {
+		fmt.Printf(err.Error())
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "invalid payload",
 		})
 	}
 
-	uploadInfo, err := s.db.ListUploadedFilesByIds(context.Background(), payload.ID)
+	uploadInfo, err := s.db.DeleteDocumentsByIds(context.Background(), payload.ID)
 
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
@@ -194,10 +209,22 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 
 	for _, info := range uploadInfo {
 		wg.Add(1)
-		go func(info db.UploadedFile) {
+		go func(info db.DeleteDocumentsByIdsRow) {
 			defer wg.Done()
 
-			os.RemoveAll(info.FilePath)
+			if err := os.RemoveAll(info.FilePath); err == nil {
+				err := s.db.DecrementFileCountAndSize(context.TODO(), db.DecrementFileCountAndSizeParams{
+					TotalFileCount: 1,
+					TotalFileSize:  info.FileSize,
+					ID:             s.cfg.MetricsID,
+				})
+
+				if err != nil {
+					s.logger.Log(logrus.ErrorLevel, map[string]string{
+						"error": err.Error(),
+					})
+				}
+			}
 		}(info)
 	}
 

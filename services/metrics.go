@@ -1,12 +1,19 @@
 package services
 
 import (
+	"context"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/weekend-dev-labs/lancer/types"
 )
 
 func (s *Services) serviceGetMetrics(c echo.Context) error {
-	return nil
+	metrics, _ := s.db.GetFirstCreatedMetrics(context.TODO())
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"metrics": metrics,
+	})
 }
 
 func (s *Services) registerMetricsService() {

@@ -50,5 +50,5 @@ func main() {
 		log.Printf("[LANCER WARNING] Redis Server Configuration Missing. Using Database to store sessions.")
 	}
 
-	api.StartServer(cfg, query, redisCache)
+	api.StartServer(cfg, query, redisCache, logger)
 }

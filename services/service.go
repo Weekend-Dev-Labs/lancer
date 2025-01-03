@@ -2,6 +2,7 @@ package services
 
 import (
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"github.com/weekend-dev-labs/lancer/cache"
 	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/db"
@@ -18,9 +19,10 @@ type Services struct {
 	repo       *repo.Repo
 	fio        *utils.FileIO
 	webhook    *Webhook
+	logger     *logrus.Logger
 }
 
-func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo) {
+func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo, logger *logrus.Logger) {
 
 	taskManager := NewTaskManager(repo)
 	webhook := NewWebhookNotifier(cfg.WebhookEndpoint)
@@ -35,10 +37,12 @@ func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, r
 		repo:       repo,
 		fio:        fio,
 		webhook:    webhook,
+		logger:     logger,
 	}
 
 	// registering the services
 	services.registerSessionServicer()
 	services.registerUploaderService()
 	services.registerAdminService()
+	services.registerMetricsService()
 }

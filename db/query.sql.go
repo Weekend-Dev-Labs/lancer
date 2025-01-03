@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -218,9 +219,9 @@ WHERE id = $3
 `
 
 type DecrementFileCountAndSizeParams struct {
-	TotalFileCount pgtype.Int8
-	TotalFileSize  pgtype.Int8
-	ID             pgtype.UUID
+	TotalFileCount int64
+	TotalFileSize  int64
+	ID             uuid.UUID
 }
 
 func (q *Queries) DecrementFileCountAndSize(ctx context.Context, arg DecrementFileCountAndSizeParams) error {
@@ -232,14 +233,14 @@ const deleteDocumentsByIds = `-- name: DeleteDocumentsByIds :many
 
 WITH deleted AS (
     DELETE FROM uploaded_files
-    WHERE id = ANY($1::int[]) 
+    WHERE id = ANY($1::uuid[]) 
     RETURNING id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata
 )
 SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata FROM deleted
 `
 
 type DeleteDocumentsByIdsRow struct {
-	ID               pgtype.UUID
+	ID               uuid.UUID
 	FileName         string
 	FilePath         string
 	FileSize         int64
@@ -254,7 +255,7 @@ type DeleteDocumentsByIdsRow struct {
 }
 
 // Use ANY to match an array of IDs
-func (q *Queries) DeleteDocumentsByIds(ctx context.Context, dollar_1 []int32) ([]DeleteDocumentsByIdsRow, error) {
+func (q *Queries) DeleteDocumentsByIds(ctx context.Context, dollar_1 []uuid.UUID) ([]DeleteDocumentsByIdsRow, error) {
 	rows, err := q.db.Query(ctx, deleteDocumentsByIds, dollar_1)
 	if err != nil {
 		return nil, err
@@ -292,7 +293,7 @@ DELETE FROM metrics
 WHERE id = $1
 `
 
-func (q *Queries) DeleteMetrics(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteMetrics(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteMetrics, id)
 	return err
 }
@@ -919,7 +920,7 @@ SELECT id, total_file_size, total_file_count, files_by_mimetype, largest_file_si
 WHERE id = $1
 `
 
-func (q *Queries) GetMetrics(ctx context.Context, id pgtype.UUID) (Metric, error) {
+func (q *Queries) GetMetrics(ctx context.Context, id uuid.UUID) (Metric, error) {
 	row := q.db.QueryRow(ctx, getMetrics, id)
 	var i Metric
 	err := row.Scan(
@@ -944,7 +945,7 @@ WHERE id = $2
 
 type GetMetricsByMimetypeParams struct {
 	FilesByMimetype []byte
-	ID              pgtype.UUID
+	ID              uuid.UUID
 }
 
 func (q *Queries) GetMetricsByMimetype(ctx context.Context, arg GetMetricsByMimetypeParams) (interface{}, error) {
@@ -991,7 +992,7 @@ SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at,
 WHERE id = $1
 `
 
-func (q *Queries) GetUploadedFileByID(ctx context.Context, id pgtype.UUID) (UploadedFile, error) {
+func (q *Queries) GetUploadedFileByID(ctx context.Context, id uuid.UUID) (UploadedFile, error) {
 	row := q.db.QueryRow(ctx, getUploadedFileByID, id)
 	var i UploadedFile
 	err := row.Scan(
@@ -1052,7 +1053,7 @@ DELETE FROM uploaded_files
 WHERE id = $1
 `
 
-func (q *Queries) HardDeleteUploadedFile(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) HardDeleteUploadedFile(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, hardDeleteUploadedFile, id)
 	return err
 }
@@ -1066,9 +1067,9 @@ WHERE id = $3
 `
 
 type IncrementFileCountAndSizeParams struct {
-	TotalFileCount pgtype.Int8
-	TotalFileSize  pgtype.Int8
-	ID             pgtype.UUID
+	TotalFileCount int64
+	TotalFileSize  int64
+	ID             uuid.UUID
 }
 
 func (q *Queries) IncrementFileCountAndSize(ctx context.Context, arg IncrementFileCountAndSizeParams) error {
@@ -1087,13 +1088,13 @@ RETURNING id, total_file_size, total_file_count, files_by_mimetype, largest_file
 `
 
 type InsertMetricsParams struct {
-	TotalFileSize     pgtype.Int8
-	TotalFileCount    pgtype.Int8
+	TotalFileSize     int64
+	TotalFileCount    int64
 	FilesByMimetype   []byte
-	LargestFileSize   pgtype.Int8
-	SmallestFileSize  pgtype.Int8
+	LargestFileSize   int64
+	SmallestFileSize  int64
 	AverageFileSize   pgtype.Numeric
-	TotalDeletedFiles pgtype.Int8
+	TotalDeletedFiles int64
 }
 
 func (q *Queries) InsertMetrics(ctx context.Context, arg InsertMetricsParams) (Metric, error) {
@@ -1307,10 +1308,10 @@ func (q *Queries) ListUploadedFiles(ctx context.Context) ([]UploadedFile, error)
 const listUploadedFilesByIds = `-- name: ListUploadedFilesByIds :many
 SELECT id, file_name, file_path, file_size, file_type, uploaded_by, uploaded_at, is_deleted, checksum, description, provider, provider_metadata 
 FROM uploaded_files
-WHERE id = ANY($1::int[])
+WHERE id = ANY($1::uuid[])
 `
 
-func (q *Queries) ListUploadedFilesByIds(ctx context.Context, dollar_1 []int32) ([]UploadedFile, error) {
+func (q *Queries) ListUploadedFilesByIds(ctx context.Context, dollar_1 []uuid.UUID) ([]UploadedFile, error) {
 	rows, err := q.db.Query(ctx, listUploadedFilesByIds, dollar_1)
 	if err != nil {
 		return nil, err
@@ -1540,7 +1541,7 @@ SET is_deleted = TRUE
 WHERE id = $1
 `
 
-func (q *Queries) SoftDeleteUploadedFile(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) SoftDeleteUploadedFile(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, softDeleteUploadedFile, id)
 	return err
 }
@@ -1581,14 +1582,14 @@ WHERE id = $8
 `
 
 type UpdateAllMetricsParams struct {
-	TotalFileSize     pgtype.Int8
-	TotalFileCount    pgtype.Int8
+	TotalFileSize     int64
+	TotalFileCount    int64
 	FilesByMimetype   []byte
-	LargestFileSize   pgtype.Int8
-	SmallestFileSize  pgtype.Int8
+	LargestFileSize   int64
+	SmallestFileSize  int64
 	AverageFileSize   pgtype.Numeric
-	TotalDeletedFiles pgtype.Int8
-	ID                pgtype.UUID
+	TotalDeletedFiles int64
+	ID                uuid.UUID
 }
 
 func (q *Queries) UpdateAllMetrics(ctx context.Context, arg UpdateAllMetricsParams) error {
@@ -1614,7 +1615,7 @@ WHERE id = $2
 
 type UpdateAverageFileSizeParams struct {
 	AverageFileSize pgtype.Numeric
-	ID              pgtype.UUID
+	ID              uuid.UUID
 }
 
 func (q *Queries) UpdateAverageFileSize(ctx context.Context, arg UpdateAverageFileSizeParams) error {
@@ -1631,9 +1632,9 @@ WHERE id = $3
 `
 
 type UpdateFileSizeAndCountParams struct {
-	TotalFileSize  pgtype.Int8
-	TotalFileCount pgtype.Int8
-	ID             pgtype.UUID
+	TotalFileSize  int64
+	TotalFileCount int64
+	ID             uuid.UUID
 }
 
 func (q *Queries) UpdateFileSizeAndCount(ctx context.Context, arg UpdateFileSizeAndCountParams) error {
@@ -1650,9 +1651,9 @@ WHERE id = $3
 `
 
 type UpdateFileSizesParams struct {
-	LargestFileSize  pgtype.Int8
-	SmallestFileSize pgtype.Int8
-	ID               pgtype.UUID
+	LargestFileSize  int64
+	SmallestFileSize int64
+	ID               uuid.UUID
 }
 
 func (q *Queries) UpdateFileSizes(ctx context.Context, arg UpdateFileSizesParams) error {
@@ -1669,7 +1670,7 @@ WHERE id = $2
 
 type UpdateFilesByMimetypeParams struct {
 	FilesByMimetype []byte
-	ID              pgtype.UUID
+	ID              uuid.UUID
 }
 
 func (q *Queries) UpdateFilesByMimetype(ctx context.Context, arg UpdateFilesByMimetypeParams) error {
@@ -1719,8 +1720,8 @@ WHERE id = $2
 `
 
 type UpdateTotalDeletedFilesParams struct {
-	TotalDeletedFiles pgtype.Int8
-	ID                pgtype.UUID
+	TotalDeletedFiles int64
+	ID                uuid.UUID
 }
 
 func (q *Queries) UpdateTotalDeletedFiles(ctx context.Context, arg UpdateTotalDeletedFilesParams) error {
@@ -1737,7 +1738,7 @@ WHERE id = $3
 type UpdateUploadedFileMetadataParams struct {
 	Description      pgtype.Text
 	ProviderMetadata []byte
-	ID               pgtype.UUID
+	ID               uuid.UUID
 }
 
 func (q *Queries) UpdateUploadedFileMetadata(ctx context.Context, arg UpdateUploadedFileMetadataParams) error {

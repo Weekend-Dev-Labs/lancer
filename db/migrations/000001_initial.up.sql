@@ -36,15 +36,16 @@ CREATE TABLE
         last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-CREATE TABLE IF NOT EXISTS metrics (
+CREATE TABLE 
+    IF NOT EXISTS metrics (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
-    total_file_size BIGINT DEFAULT 0,
-    total_file_count BIGINT DEFAULT 0,
+    total_file_size BIGINT DEFAULT 0 NOT NULL,
+    total_file_count BIGINT DEFAULT 0 NOT NULL,
     files_by_mimetype JSONB DEFAULT '{}'::JSONB,
-    largest_file_size BIGINT,
-    smallest_file_size BIGINT,
+    largest_file_size BIGINT DEFAULT 0 NOT NULL,
+    smallest_file_size BIGINT DEFAULT 0 NOT NULL,
     average_file_size NUMERIC,
-    total_deleted_files BIGINT DEFAULT 0,
+    total_deleted_files BIGINT DEFAULT 0 NOT NULL,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
