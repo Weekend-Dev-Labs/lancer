@@ -133,10 +133,11 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			return err
 		}
 
-		if err := s.db.IncrementFileCountAndSize(context.TODO(), db.IncrementFileCountAndSizeParams{
+		if err := s.db.IncrementFileCountAndSizeAndMimetype(context.TODO(), db.IncrementFileCountAndSizeAndMimetypeParams{
 			TotalFileCount: 1,
 			TotalFileSize:  file.FileSize,
 			ID:             s.cfg.MetricsID,
+			Column4:        []byte(file.FileType.String),
 		}); err != nil {
 
 			fmt.Printf("\n\n[LANCER ERROR ] %v\n\n", err.Error())
@@ -213,10 +214,11 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 			defer wg.Done()
 
 			if err := os.RemoveAll(info.FilePath); err == nil {
-				err := s.db.DecrementFileCountAndSize(context.TODO(), db.DecrementFileCountAndSizeParams{
-					TotalFileCount: 1,
-					TotalFileSize:  info.FileSize,
-					ID:             s.cfg.MetricsID,
+				err := s.db.DecrementFileCountAndSizeAndMimetype(context.TODO(), db.DecrementFileCountAndSizeAndMimetypeParams{
+					TotalFileCount:  1,
+					TotalFileSize:   info.FileSize,
+					ID:              s.cfg.MetricsID,
+					FilesByMimetype: []byte(info.FileType.String),
 				})
 
 				if err != nil {

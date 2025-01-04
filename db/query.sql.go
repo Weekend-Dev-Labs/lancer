@@ -210,22 +210,40 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
-const decrementFileCountAndSize = `-- name: DecrementFileCountAndSize :exec
+const decrementFileCountAndSizeAndMimetype = `-- name: DecrementFileCountAndSizeAndMimetype :exec
 UPDATE metrics
-SET total_file_count = total_file_count - $1,
+SET 
+    total_file_count = total_file_count - $1,
     total_file_size = total_file_size - $2,
+    files_by_mimetype = CASE 
+        WHEN COALESCE((files_by_mimetype->$4)::TEXT::BIGINT, 0) - $1 <= 0 THEN
+            files_by_mimetype - $4 -- Remove key if count is zero or less
+        ELSE
+            jsonb_set(
+                files_by_mimetype,
+                ARRAY[$4],
+                (COALESCE((files_by_mimetype->$4)::TEXT::BIGINT, 0) - $2)::TEXT::JSONB,
+                true
+            )
+    END,
     last_updated = CURRENT_TIMESTAMP
 WHERE id = $3
 `
 
-type DecrementFileCountAndSizeParams struct {
-	TotalFileCount int64
-	TotalFileSize  int64
-	ID             uuid.UUID
+type DecrementFileCountAndSizeAndMimetypeParams struct {
+	TotalFileCount  int64
+	TotalFileSize   int64
+	ID              uuid.UUID
+	FilesByMimetype []byte
 }
 
-func (q *Queries) DecrementFileCountAndSize(ctx context.Context, arg DecrementFileCountAndSizeParams) error {
-	_, err := q.db.Exec(ctx, decrementFileCountAndSize, arg.TotalFileCount, arg.TotalFileSize, arg.ID)
+func (q *Queries) DecrementFileCountAndSizeAndMimetype(ctx context.Context, arg DecrementFileCountAndSizeAndMimetypeParams) error {
+	_, err := q.db.Exec(ctx, decrementFileCountAndSizeAndMimetype,
+		arg.TotalFileCount,
+		arg.TotalFileSize,
+		arg.ID,
+		arg.FilesByMimetype,
+	)
 	return err
 }
 
@@ -1058,22 +1076,35 @@ func (q *Queries) HardDeleteUploadedFile(ctx context.Context, id uuid.UUID) erro
 	return err
 }
 
-const incrementFileCountAndSize = `-- name: IncrementFileCountAndSize :exec
+const incrementFileCountAndSizeAndMimetype = `-- name: IncrementFileCountAndSizeAndMimetype :exec
 UPDATE metrics
-SET total_file_count = total_file_count + $1,
+SET 
+    total_file_count = total_file_count + $1,
     total_file_size = total_file_size + $2,
+    files_by_mimetype = jsonb_set(
+        COALESCE(files_by_mimetype, '{}'::JSONB), -- Default to an empty JSONB object
+        ARRAY[$4], -- The mimetype key
+        ((COALESCE((files_by_mimetype->$4)::TEXT::BIGINT, 0) + $2)::TEXT)::JSONB,
+        true
+    ),
     last_updated = CURRENT_TIMESTAMP
 WHERE id = $3
 `
 
-type IncrementFileCountAndSizeParams struct {
+type IncrementFileCountAndSizeAndMimetypeParams struct {
 	TotalFileCount int64
 	TotalFileSize  int64
 	ID             uuid.UUID
+	Column4        interface{}
 }
 
-func (q *Queries) IncrementFileCountAndSize(ctx context.Context, arg IncrementFileCountAndSizeParams) error {
-	_, err := q.db.Exec(ctx, incrementFileCountAndSize, arg.TotalFileCount, arg.TotalFileSize, arg.ID)
+func (q *Queries) IncrementFileCountAndSizeAndMimetype(ctx context.Context, arg IncrementFileCountAndSizeAndMimetypeParams) error {
+	_, err := q.db.Exec(ctx, incrementFileCountAndSizeAndMimetype,
+		arg.TotalFileCount,
+		arg.TotalFileSize,
+		arg.ID,
+		arg.Column4,
+	)
 	return err
 }
 

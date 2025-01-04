@@ -11,3 +11,5 @@ sql:
         overrides:
           - db_type: "uuid"
             go_type: "github.com/google/uuid.UUID"
+          - db_type: "JSONB"
+            go_type: "json.RawMessage" # Or use map[string]interface{} if you need to manipulate it

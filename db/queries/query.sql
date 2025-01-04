@@ -271,17 +271,36 @@ SET total_deleted_files = $1,
     last_updated = CURRENT_TIMESTAMP
 WHERE id = $2;
 
--- name: IncrementFileCountAndSize :exec
+-- name: IncrementFileCountAndSizeAndMimetype :exec
 UPDATE metrics
-SET total_file_count = total_file_count + $1,
+SET 
+    total_file_count = total_file_count + $1,
     total_file_size = total_file_size + $2,
+    files_by_mimetype = jsonb_set(
+        COALESCE(files_by_mimetype, '{}'::JSONB), -- Default to an empty JSONB object
+        ARRAY[$4], -- The mimetype key
+        ((COALESCE((files_by_mimetype->$4)::TEXT::BIGINT, 0) + $2)::TEXT)::JSONB,
+        true
+    ),
     last_updated = CURRENT_TIMESTAMP
 WHERE id = $3;
 
--- name: DecrementFileCountAndSize :exec
+-- name: DecrementFileCountAndSizeAndMimetype :exec
 UPDATE metrics
-SET total_file_count = total_file_count - $1,
+SET 
+    total_file_count = total_file_count - $1,
     total_file_size = total_file_size - $2,
+    files_by_mimetype = CASE 
+        WHEN COALESCE((files_by_mimetype->$4)::TEXT::BIGINT, 0) - $1 <= 0 THEN
+            files_by_mimetype - $4 -- Remove key if count is zero or less
+        ELSE
+            jsonb_set(
+                files_by_mimetype,
+                ARRAY[$4],
+                (COALESCE((files_by_mimetype->$4)::TEXT::BIGINT, 0) - $2)::TEXT::JSONB,
+                true
+            )
+    END,
     last_updated = CURRENT_TIMESTAMP
 WHERE id = $3;
 

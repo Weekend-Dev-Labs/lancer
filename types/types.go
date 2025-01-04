@@ -1,6 +1,9 @@
 package types
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 type ContextKeys string
 type AuthKeys string
@@ -53,3 +56,5 @@ type AdminUserPayload struct {
 type UploadDeletePayload struct {
 	ID []uuid.UUID `json:"id" validate:"required"`
 }
+
+type hello pgtype.JSONBCodec

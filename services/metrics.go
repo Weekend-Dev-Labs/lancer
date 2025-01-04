@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -11,8 +13,23 @@ import (
 func (s *Services) serviceGetMetrics(c echo.Context) error {
 	metrics, _ := s.db.GetFirstCreatedMetrics(context.TODO())
 
+	metricsDecorder := json.NewDecoder(bytes.NewReader(metrics.FilesByMimetype))
+
+	var mimetypeMetrics map[string]interface{}
+
+	_ = metricsDecorder.Decode(&mimetypeMetrics)
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"metrics": metrics,
+		"metrics": map[string]interface{}{
+			"ID":                metrics.ID,
+			"TotalFileSize":     metrics.TotalFileSize,
+			"TotalFileCount":    metrics.TotalFileCount,
+			"FilesByMimetype":   mimetypeMetrics,
+			"LargestFileSize":   metrics.LargestFileSize,
+			"SmallestFileSize":  metrics.AverageFileSize,
+			"TotalDeletedFiles": metrics.TotalDeletedFiles,
+			"LastUpdated":       metrics.LastUpdated,
+		},
 	})
 }
 
