@@ -57,4 +57,9 @@ type UploadDeletePayload struct {
 	ID []uuid.UUID `json:"id" validate:"required"`
 }
 
+type UploadQueryInfo struct {
+	Limit int64 `query:"size"`
+	Page  int64 `query:"page"`
+}
+
 type hello pgtype.JSONBCodec

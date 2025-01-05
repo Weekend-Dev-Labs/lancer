@@ -174,8 +174,19 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 }
 
 func (s *Services) serviceGetUploads(c echo.Context) error {
+
+	var queryInfo types.UploadQueryInfo
+
+	queryInfo.Limit = 20
+	queryInfo.Page = 0
+
+	err := c.Bind(&queryInfo)
+	if err != nil {
+		return err
+	}
+
 	uploads, err := s.db.PaginateUploadedFiles(context.Background(), db.PaginateUploadedFilesParams{
-		Limit: 20, Offset: 0,
+		Limit: int32(queryInfo.Limit), Offset: int32(queryInfo.Page),
 	})
 
 	if err != nil {
@@ -243,6 +254,6 @@ func (s *Services) registerUploaderService() {
 	group := s.e.Group("/upload")
 
 	group.GET("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceGetUploads))
-	group.DELETE("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceDeleteUploads))
+	group.POST("/delete", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceDeleteUploads))
 	group.POST("", s.middlewareAuth([]types.AuthKeys{types.AuthSessionToken}, s.serviceHandlerChunkUploader))
 }

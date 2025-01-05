@@ -330,3 +330,25 @@ SELECT *
 FROM metrics
 ORDER BY id ASC
 LIMIT 1;
+
+-- name: FilterUploadedFiles :many
+SELECT 
+    uf.id,
+    uf.file_name,
+    uf.file_path,
+    uf.file_size,
+    uf.file_type,
+    uf.uploaded_by,
+    uf.uploaded_at,
+    uf.is_deleted,
+    uf.checksum,
+    uf.description,
+    uf.provider,
+    uf.provider_metadata
+FROM uploaded_files uf
+WHERE 
+    uf.is_deleted = FALSE
+    AND ($1::BIGINT IS NULL OR uf.file_size >= $1)  -- Minimum file size
+    AND ($2::BIGINT IS NULL OR uf.file_size <= $2)  -- Maximum file size
+    AND ($3::TEXT IS NULL OR uf.file_type = $3);    -- File type filter
+

@@ -50,7 +50,9 @@ CREATE TABLE
 );
 
 CREATE INDEX idx_uploaded_files_provider ON uploaded_files (provider);
-
+CREATE INDEX idx_uploaded_files_size ON uploaded_files (file_size);
+CREATE INDEX idx_uploaded_files_type ON uploaded_files (file_type);
+CREATE INDEX idx_uploaded_files_duplicates ON uploaded_files (file_name, file_size, checksum);
 CREATE INDEX idx_uploaded_files_provider_metadata ON uploaded_files USING gin (provider_metadata);
 
 CREATE INDEX idx_owner_session ON sessions (owner_id);
