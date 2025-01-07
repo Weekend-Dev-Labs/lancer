@@ -118,6 +118,10 @@ func (r *Repo) CreateSession(session *types.SessionInfo) (*types.SessionInfo, er
 			String: session.OwnerID,
 			Valid:  true,
 		},
+		Provider: pgtype.Text{
+			String: string(session.Provider),
+			Valid:  true,
+		},
 	}
 
 	ack, err := r.db.CreateSession(context.TODO(), dbSessionData)
@@ -148,6 +152,7 @@ func (r *Repo) CreateSession(session *types.SessionInfo) (*types.SessionInfo, er
 		FileName:     ack.FileName.String,
 		OwnerID:      ack.OwnerID.String,
 		CurrentChunk: ack.CurrentChunk.Int64,
+		Provider:     types.UploaderProvider(ack.Provider.String),
 	}, nil
 }
 
@@ -236,6 +241,10 @@ func (r *Repo) UpdateSessionById(id string, session *types.SessionInfo) error {
 			String: session.FileName,
 			Valid:  true,
 		},
+		Provider: pgtype.Text{
+			String: string(session.Provider),
+			Valid:  true,
+		},
 		ID: pgtype.UUID{
 			Bytes: sessionId,
 			Valid: true,
@@ -310,6 +319,7 @@ func (r *Repo) GetSessions(params *db.PaginateSessionsParams) []*types.SessionIn
 			TempPath:     val.TempPath.String,
 			OwnerID:      val.OwnerID.String,
 			CurrentChunk: val.CurrentChunk.Int64,
+			Provider:     types.UploaderProvider(val.Provider.String),
 		})
 	}
 

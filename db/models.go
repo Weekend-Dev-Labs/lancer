@@ -30,6 +30,7 @@ type Session struct {
 	TempPath     pgtype.Text
 	OwnerID      pgtype.Text
 	CurrentChunk pgtype.Int8
+	Provider     pgtype.Text
 	CreatedAt    pgtype.Timestamp
 }
 

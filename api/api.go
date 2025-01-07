@@ -12,6 +12,7 @@ import (
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/db/repo"
 	"github.com/weekend-dev-labs/lancer/services"
+	"github.com/weekend-dev-labs/lancer/uploader"
 )
 
 func StartServer(cfg *config.LancerConfig, db *db.Queries, cache *cache.Cache, logger *logrus.Logger) {
@@ -26,7 +27,11 @@ func StartServer(cfg *config.LancerConfig, db *db.Queries, cache *cache.Cache, l
 
 	newRepo := repo.NewRepo(db, cache, cfg)
 
-	services.RegisterServices(e.Group("/api"), db, cfg, cache, newRepo, logger)
+	awsUploader := uploader.NewAwsUploader(cfg)
+
+	services.RegisterServices(e.Group("/api"), db, cfg, cache, newRepo, logger, &services.ServiceUploader{
+		Aws: awsUploader,
+	})
 
 	if err := e.Start(":8080"); err != nil {
 		log.Fatalf("[Lancer Error] Failed to start HTTP Server (%v)", err)

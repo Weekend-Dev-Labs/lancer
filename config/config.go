@@ -36,6 +36,8 @@ type LancerConfig struct {
 	}
 
 	MetricsID uuid.UUID
+
+	IsAwsProvided bool
 }
 
 func ParseFlags() *LancerConfig {
@@ -81,6 +83,8 @@ func ParseFlags() *LancerConfig {
 			log.Fatalf("[Lancer Error] Invalid file content for configuration (%v)", err)
 		}
 	}
+
+	cfg.IsAwsProvided = false
 
 	// Database Related
 	if cfg.Database.Address == "" {

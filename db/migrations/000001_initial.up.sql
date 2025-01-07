@@ -8,6 +8,7 @@ CREATE TABLE
         temp_path TEXT,
         owner_id TEXT,
         current_chunk BIGINT,
+        provider TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 

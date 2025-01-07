@@ -96,9 +96,9 @@ func (q *Queries) CountUsersAfterDate(ctx context.Context, createdAt pgtype.Time
 }
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO sessions (file_size, chunk_size, max_chunk, file_name, temp_path, owner_id)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at
+INSERT INTO sessions (file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, provider)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at
 `
 
 type CreateSessionParams struct {
@@ -108,6 +108,7 @@ type CreateSessionParams struct {
 	FileName  pgtype.Text
 	TempPath  pgtype.Text
 	OwnerID   pgtype.Text
+	Provider  pgtype.Text
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
@@ -118,6 +119,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		arg.FileName,
 		arg.TempPath,
 		arg.OwnerID,
+		arg.Provider,
 	)
 	var i Session
 	err := row.Scan(
@@ -129,6 +131,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.TempPath,
 		&i.OwnerID,
 		&i.CurrentChunk,
+		&i.Provider,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -359,9 +362,9 @@ WHERE
 `
 
 type FilterUploadedFilesParams struct {
-	Column1 interface{}
-	Column2 interface{}
-	Column3 interface{}
+	Column1 int64
+	Column2 int64
+	Column3 string
 }
 
 func (q *Queries) FilterUploadedFiles(ctx context.Context, arg FilterUploadedFilesParams) ([]UploadedFile, error) {
@@ -614,7 +617,7 @@ func (q *Queries) FindFilesByUser(ctx context.Context, uploadedBy string) ([]Upl
 }
 
 const findLargeSessions = `-- name: FindLargeSessions :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 WHERE file_size > $1
 `
 
@@ -636,6 +639,7 @@ func (q *Queries) FindLargeSessions(ctx context.Context, fileSize int64) ([]Sess
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -649,7 +653,7 @@ func (q *Queries) FindLargeSessions(ctx context.Context, fileSize int64) ([]Sess
 }
 
 const findMissingTempPaths = `-- name: FindMissingTempPaths :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 WHERE temp_path IS NULL OR temp_path = ''
 `
 
@@ -671,6 +675,7 @@ func (q *Queries) FindMissingTempPaths(ctx context.Context) ([]Session, error) {
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -684,7 +689,7 @@ func (q *Queries) FindMissingTempPaths(ctx context.Context) ([]Session, error) {
 }
 
 const findSessionById = `-- name: FindSessionById :one
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 WHERE id = $1
 `
 
@@ -700,13 +705,14 @@ func (q *Queries) FindSessionById(ctx context.Context, id pgtype.UUID) (Session,
 		&i.TempPath,
 		&i.OwnerID,
 		&i.CurrentChunk,
+		&i.Provider,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const findSessionsAfterDate = `-- name: FindSessionsAfterDate :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 WHERE created_at > $1
 `
 
@@ -728,6 +734,7 @@ func (q *Queries) FindSessionsAfterDate(ctx context.Context, createdAt pgtype.Ti
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -742,11 +749,11 @@ func (q *Queries) FindSessionsAfterDate(ctx context.Context, createdAt pgtype.Ti
 
 const findSessionsByDate = `-- name: FindSessionsByDate :many
 
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 WHERE DATE(created_at) = $1
 `
 
-// Requires using a slice/array in Go
+// Adjusted to work with PostgreSQL arrays
 func (q *Queries) FindSessionsByDate(ctx context.Context, createdAt pgtype.Timestamp) ([]Session, error) {
 	rows, err := q.db.Query(ctx, findSessionsByDate, createdAt)
 	if err != nil {
@@ -765,6 +772,7 @@ func (q *Queries) FindSessionsByDate(ctx context.Context, createdAt pgtype.Times
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -778,7 +786,7 @@ func (q *Queries) FindSessionsByDate(ctx context.Context, createdAt pgtype.Times
 }
 
 const findSessionsByOwner = `-- name: FindSessionsByOwner :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 WHERE owner_id = $1
 `
 
@@ -800,6 +808,7 @@ func (q *Queries) FindSessionsByOwner(ctx context.Context, ownerID pgtype.Text) 
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -813,7 +822,7 @@ func (q *Queries) FindSessionsByOwner(ctx context.Context, ownerID pgtype.Text) 
 }
 
 const findSessionsByOwnerIndexed = `-- name: FindSessionsByOwnerIndexed :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 WHERE owner_id = $1
 `
 
@@ -835,6 +844,7 @@ func (q *Queries) FindSessionsByOwnerIndexed(ctx context.Context, ownerID pgtype
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -848,8 +858,8 @@ func (q *Queries) FindSessionsByOwnerIndexed(ctx context.Context, ownerID pgtype
 }
 
 const findSessionsByOwners = `-- name: FindSessionsByOwners :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
-WHERE owner_id IN ($1)
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
+WHERE owner_id = ANY ($1)
 `
 
 func (q *Queries) FindSessionsByOwners(ctx context.Context, ownerID pgtype.Text) ([]Session, error) {
@@ -870,6 +880,7 @@ func (q *Queries) FindSessionsByOwners(ctx context.Context, ownerID pgtype.Text)
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -1291,13 +1302,14 @@ func (q *Queries) ListDeletedFiles(ctx context.Context) ([]UploadedFile, error) 
 }
 
 const listSessionDetails = `-- name: ListSessionDetails :many
-SELECT id, file_name, owner_id, created_at FROM sessions
+SELECT id, file_name, owner_id, provider, created_at FROM sessions
 `
 
 type ListSessionDetailsRow struct {
 	ID        pgtype.UUID
 	FileName  pgtype.Text
 	OwnerID   pgtype.Text
+	Provider  pgtype.Text
 	CreatedAt pgtype.Timestamp
 }
 
@@ -1314,6 +1326,7 @@ func (q *Queries) ListSessionDetails(ctx context.Context) ([]ListSessionDetailsR
 			&i.ID,
 			&i.FileName,
 			&i.OwnerID,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -1327,7 +1340,7 @@ func (q *Queries) ListSessionDetails(ctx context.Context) ([]ListSessionDetailsR
 }
 
 const listSessions = `-- name: ListSessions :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 `
 
 func (q *Queries) ListSessions(ctx context.Context) ([]Session, error) {
@@ -1348,6 +1361,7 @@ func (q *Queries) ListSessions(ctx context.Context) ([]Session, error) {
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -1467,7 +1481,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 const paginateSessions = `-- name: PaginateSessions :many
-SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, created_at FROM sessions
+SELECT id, file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, current_chunk, provider, created_at FROM sessions
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
 `
@@ -1495,6 +1509,7 @@ func (q *Queries) PaginateSessions(ctx context.Context, arg PaginateSessionsPara
 			&i.TempPath,
 			&i.OwnerID,
 			&i.CurrentChunk,
+			&i.Provider,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -1783,14 +1798,15 @@ func (q *Queries) UpdateLastLogin(ctx context.Context, id pgtype.UUID) error {
 
 const updateSession = `-- name: UpdateSession :exec
 UPDATE sessions
-SET file_name = $1, temp_path = $2, current_chunk = $3
-WHERE id = $4
+SET file_name = $1, temp_path = $2, current_chunk = $3, provider = $4
+WHERE id = $5
 `
 
 type UpdateSessionParams struct {
 	FileName     pgtype.Text
 	TempPath     pgtype.Text
 	CurrentChunk pgtype.Int8
+	Provider     pgtype.Text
 	ID           pgtype.UUID
 }
 
@@ -1799,6 +1815,7 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) er
 		arg.FileName,
 		arg.TempPath,
 		arg.CurrentChunk,
+		arg.Provider,
 		arg.ID,
 	)
 	return err

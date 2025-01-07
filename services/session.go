@@ -25,6 +25,15 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		return err
 	}
 
+	switch payload.Provider {
+	case types.UploaderAws:
+		if !s.cfg.IsAwsProvided {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "aws is not configured to handle uploads",
+			})
+		}
+	}
+
 	session, err := s.repo.CreateSession(&types.SessionInfo{
 		FileSize:     payload.FileSize,
 		ChunkSize:    payload.ChunkSize,

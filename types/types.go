@@ -7,6 +7,7 @@ import (
 
 type ContextKeys string
 type AuthKeys string
+type UploaderProvider string
 
 const (
 	ContextAuthInfo    = ContextKeys("auth-info")
@@ -21,11 +22,16 @@ const (
 	AuthServerCredentials = AuthKeys("server-credentials")
 )
 
+const (
+	UploaderAws = UploaderProvider("AWS")
+)
+
 type CreateSessionPayload struct {
-	FileSize  int64  `json:"file_size" validate:"required"`
-	ChunkSize int64  `json:"chunk_size" validate:"required"`
-	MaxChunk  int64  `json:"max_chunk" validate:"required"`
-	FileName  string `json:"file_name" validate:"required"`
+	FileSize  int64            `json:"file_size" validate:"required"`
+	ChunkSize int64            `json:"chunk_size" validate:"required"`
+	MaxChunk  int64            `json:"max_chunk" validate:"required"`
+	FileName  string           `json:"file_name" validate:"required"`
+	Provider  UploaderProvider `json:"provider"`
 }
 
 type SessionTokenPayload struct {
@@ -33,14 +39,15 @@ type SessionTokenPayload struct {
 }
 
 type SessionInfo struct {
-	ID           string `json:"id"`
-	FileSize     int64  `json:"file_size"`
-	ChunkSize    int64  `json:"chunk_size"`
-	MaxChunk     int64  `json:"max_chunk"`
-	FileName     string `json:"file_name"`
-	TempPath     string `json:"temp_path"`
-	OwnerID      string `json:"owner_id"`
-	CurrentChunk int64  `json:"current_chunk"`
+	ID           string           `json:"id"`
+	FileSize     int64            `json:"file_size"`
+	ChunkSize    int64            `json:"chunk_size"`
+	MaxChunk     int64            `json:"max_chunk"`
+	FileName     string           `json:"file_name"`
+	TempPath     string           `json:"temp_path"`
+	OwnerID      string           `json:"owner_id"`
+	CurrentChunk int64            `json:"current_chunk"`
+	Provider     UploaderProvider `json:"provider"`
 }
 
 type UploaderChunkPayload struct {

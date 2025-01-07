@@ -10,36 +10,25 @@ import (
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/types"
 )
 
 type AwsUploader struct {
 	mu       sync.Mutex
 	s3Client *s3.Client
-	sessions map[string]MultipartSessionInfo
+	sessions map[string]*MultipartSessionInfo
 }
 
 type MultipartSessionInfo struct {
 	UploadInfo *s3.CreateMultipartUploadOutput
-	Parts      s3Types.CompletedPart
+	Parts      s3Types.CompletedMultipartUpload
 }
 
-func NewAwsUploader() *AwsUploader {
-	config, err := awsConfig.LoadDefaultConfig(
-		context.TODO(),
-		awsConfig.WithSharedConfigFiles([]string{config.path}),
-	)
-
-	client := s3.NewFromConfig(config)
-
-	return client
-}
-
-func (au *AwsUploader) CreateMultipart(bucket string, key string) (*s3.CreateMultipartUploadOutput, error) {
-	return au.s3Client.CreateMultipartUpload(context.TODO(), &s3.CreateMultipartUploadInput{
-		Bucket: &bucket,
-		Key:    &key,
-	})
+type AbortMultipartParam struct {
+	Bucket   string
+	Key      string
+	UploadID string
 }
 
 type UploadPartParam struct {
@@ -48,6 +37,46 @@ type UploadPartParam struct {
 	Part     int32
 	Body     *bytes.Reader
 	UploadID string
+}
+
+type CompleteMultipartParam struct {
+	Bucket             string
+	Key                string
+	UploadID           string
+	CompletedPartsInfo []s3Types.CompletedPart
+}
+
+func NewAwsUploader(cfg *config.LancerConfig) *AwsUploader {
+	config, _ := awsConfig.LoadDefaultConfig(
+		context.TODO(),
+		awsConfig.WithSharedConfigFiles([]string{""}),
+	)
+
+	client := s3.NewFromConfig(config)
+
+	return &AwsUploader{
+		s3Client: client,
+		mu:       sync.Mutex{},
+		sessions: make(map[string]*MultipartSessionInfo),
+	}
+}
+
+func (au *AwsUploader) CreateMultipart(bucket string, key string, sessionInfo *types.SessionInfo) error {
+	uploadOutput, err := au.s3Client.CreateMultipartUpload(context.TODO(), &s3.CreateMultipartUploadInput{
+		Bucket: &bucket,
+		Key:    &key,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	au.mu.Lock()
+	au.sessions[sessionInfo.ID] = &MultipartSessionInfo{
+		UploadInfo: uploadOutput,
+		Parts:      s3Types.CompletedMultipartUpload{},
+	}
+	au.mu.Unlock()
 }
 
 func (au *AwsUploader) UploadPart(params UploadPartParam) (*s3.UploadPartOutput, error) {
@@ -68,13 +97,6 @@ func (au *AwsUploader) UploadPart(params UploadPartParam) (*s3.UploadPartOutput,
 	return resp, nil
 }
 
-type CompleteMultipartParam struct {
-	Bucket             string
-	Key                string
-	UploadID           string
-	CompletedPartsInfo []s3Types.CompletedPart
-}
-
 func (au *AwsUploader) CompleteMultipartUpload(params CompleteMultipartParam) error {
 	input := &s3.CompleteMultipartUploadInput{
 		Bucket:   &params.Bucket,
@@ -88,12 +110,6 @@ func (au *AwsUploader) CompleteMultipartUpload(params CompleteMultipartParam) er
 	_, err := au.s3Client.CompleteMultipartUpload(context.TODO(), input)
 
 	return err
-}
-
-type AbortMultipartParam struct {
-	Bucket   string
-	Key      string
-	UploadID string
 }
 
 func (au *AwsUploader) AbortMultipartUpload(params AbortMultipartParam) error {
@@ -117,4 +133,39 @@ func (au *AwsUploader) HandleMultipartUploads(id string, part int32, sessionInfo
 		return fmt.Errorf("no upload session found")
 	}
 
+	if sessionInfo.CurrentChunk+1 == int64(part) {
+		err := au.CompleteMultipartUpload(CompleteMultipartParam{
+			Bucket:             *info.UploadInfo.Bucket,
+			Key:                *info.UploadInfo.Key,
+			UploadID:           *info.UploadInfo.UploadId,
+			CompletedPartsInfo: info.Parts.Parts,
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	upload, err := au.UploadPart(UploadPartParam{
+		Bucket:   *info.UploadInfo.Bucket,
+		Key:      *info.UploadInfo.Key,
+		Part:     part,
+		Body:     file,
+		UploadID: *info.UploadInfo.UploadId,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	info.Parts.Parts = append(info.Parts.Parts, s3Types.CompletedPart{
+		ETag:       upload.ETag,
+		PartNumber: &part,
+	})
+
+	au.mu.Lock()
+	au.sessions[id] = info
+	au.mu.Unlock()
+
+	return nil
 }

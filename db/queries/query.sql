@@ -1,18 +1,18 @@
 -- name: CreateSession :one
-INSERT INTO sessions (file_size, chunk_size, max_chunk, file_name, temp_path, owner_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO sessions (file_size, chunk_size, max_chunk, file_name, temp_path, owner_id, provider)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: ListSessions :many
 SELECT * FROM sessions;
 
 -- name: ListSessionDetails :many
-SELECT id, file_name, owner_id, created_at FROM sessions;
+SELECT id, file_name, owner_id, provider, created_at FROM sessions;
 
 -- name: UpdateSession :exec
 UPDATE sessions
-SET file_name = $1, temp_path = $2, current_chunk = $3
-WHERE id = $4;
+SET file_name = $1, temp_path = $2, current_chunk = $3, provider = $4
+WHERE id = $5;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions
@@ -54,7 +54,7 @@ WHERE owner_id = $1;
 
 -- name: FindSessionsByOwners :many
 SELECT * FROM sessions
-WHERE owner_id IN ($1); -- Requires using a slice/array in Go
+WHERE owner_id = ANY ($1); -- Adjusted to work with PostgreSQL arrays
 
 -- name: FindSessionsByDate :many
 SELECT * FROM sessions

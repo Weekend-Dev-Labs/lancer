@@ -7,6 +7,7 @@ import (
 	"github.com/weekend-dev-labs/lancer/config"
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/db/repo"
+	"github.com/weekend-dev-labs/lancer/uploader"
 	"github.com/weekend-dev-labs/lancer/utils"
 )
 
@@ -20,9 +21,14 @@ type Services struct {
 	fio        *utils.FileIO
 	webhook    *Webhook
 	logger     *logrus.Logger
+	uploader   *ServiceUploader
 }
 
-func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo, logger *logrus.Logger) {
+type ServiceUploader struct {
+	Aws *uploader.AwsUploader
+}
+
+func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo, logger *logrus.Logger, uploader *ServiceUploader) {
 
 	taskManager := NewTaskManager(repo)
 	webhook := NewWebhookNotifier(cfg.WebhookEndpoint)
@@ -38,6 +44,7 @@ func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, r
 		fio:        fio,
 		webhook:    webhook,
 		logger:     logger,
+		uploader:   uploader,
 	}
 
 	// registering the services
