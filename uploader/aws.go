@@ -77,6 +77,8 @@ func (au *AwsUploader) CreateMultipart(bucket string, key string, sessionInfo *t
 		Parts:      s3Types.CompletedMultipartUpload{},
 	}
 	au.mu.Unlock()
+
+	return nil
 }
 
 func (au *AwsUploader) UploadPart(params UploadPartParam) (*s3.UploadPartOutput, error) {
