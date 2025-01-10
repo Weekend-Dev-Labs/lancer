@@ -20,6 +20,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
+	"github.com/weekend-dev-labs/lancer/uploader"
 	"github.com/weekend-dev-labs/lancer/utils"
 )
 
@@ -250,9 +251,38 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 	})
 }
 
+func (s *Services) serviceUploadFileTestAws(c echo.Context) error {
+	file, err := c.FormFile("file")
+
+	if err != nil {
+		return err
+	}
+
+	content, err := file.Open()
+
+	if err != nil {
+		return err
+	}
+
+	res, err := s.uploader.Aws.UploadFullFile(&uploader.UploadFullFileParam{
+		Bucket: s.cfg.Store.AWS.Bucket,
+		Key:    "lancer-test",
+		File:   content,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"info": res,
+	})
+}
+
 func (s *Services) registerUploaderService() {
 	group := s.e.Group("/upload")
 
+	group.POST("/aws", s.serviceUploadFileTestAws)
 	group.GET("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceGetUploads))
 	group.POST("/delete", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceDeleteUploads))
 	group.POST("", s.middlewareAuth([]types.AuthKeys{types.AuthSessionToken}, s.serviceHandlerChunkUploader))

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"sync"
 
@@ -45,6 +46,12 @@ type CompleteMultipartParam struct {
 	Key                string
 	UploadID           string
 	CompletedPartsInfo []s3Types.CompletedPart
+}
+
+type UploadFullFileParam struct {
+	Bucket string
+	Key    string
+	File   io.Reader
 }
 
 func NewAwsUploader(cfg *config.LancerConfig) *AwsUploader {
@@ -180,4 +187,12 @@ func (au *AwsUploader) HandleMultipartUploads(id string, part int32, sessionInfo
 	au.mu.Unlock()
 
 	return nil
+}
+
+func (au *AwsUploader) UploadFullFile(params *UploadFullFileParam) (*s3.PutObjectOutput, error) {
+	return au.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: &params.Bucket,
+		Key:    &params.Key,
+		Body:   params.File,
+	})
 }

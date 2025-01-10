@@ -15,7 +15,7 @@ store:
     store: true
     bucket: "square-appointment"
     region: "ap-southeast-2"
-    config: "C:\\Users\\lenovo\\aws.csv"
+    config: "C:\\Users\\lenovo\\custom-aws\\config"
 admin-token-secret: "ashjdjkhuiqh827187hjhkasdj"
 auth:
   email: "lancer@email.com"

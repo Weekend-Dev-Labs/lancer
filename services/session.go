@@ -25,11 +25,11 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		return err
 	}
 
-	var isAwsUploader bool
+	// var isAwsUploader bool
 
 	switch payload.Provider {
 	case types.UploaderAws:
-		isAwsUploader = true
+		// isAwsUploader = true
 		if !s.cfg.Store.AWS.Store {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "aws is not configured to handle uploads",

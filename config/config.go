@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 
@@ -95,11 +94,6 @@ func ParseFlags() *LancerConfig {
 			log.Fatalf("[Lancer Error] Invalid file content for configuration (%v)", err)
 		}
 	}
-
-	fmt.Println(cfg.Store.AWS.Bucket)
-	fmt.Println(cfg.Store.AWS.Config)
-	fmt.Println(cfg.Store.AWS.Store)
-	fmt.Println(cfg.Store.AWS.Region)
 
 	cfg.IsAwsProvided = false
 
