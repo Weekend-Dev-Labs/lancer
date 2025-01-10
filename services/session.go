@@ -25,9 +25,12 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		return err
 	}
 
+	var isAwsUploader bool
+
 	switch payload.Provider {
 	case types.UploaderAws:
-		if !s.cfg.IsAwsProvided {
+		isAwsUploader = true
+		if !s.cfg.Store.AWS.Store {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "aws is not configured to handle uploads",
 			})
@@ -41,6 +44,7 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		FileName:     payload.FileName,
 		OwnerID:      authInfo.ID,
 		CurrentChunk: 0,
+		Provider:     payload.Provider,
 	})
 
 	if err != nil {

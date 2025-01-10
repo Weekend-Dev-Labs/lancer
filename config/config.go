@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -24,6 +25,12 @@ type LancerConfig struct {
 		Local struct {
 			Path string `yaml:"path"`
 			Temp string `yaml:"temp-path"`
+		}
+		AWS struct {
+			Store  bool   `yaml:"store"`
+			Bucket string `yaml:"bucket"`
+			Region string `yaml:"region"`
+			Config string `yaml:"config"`
 		}
 	}
 	AuthEndpoint string `yaml:"auth-endpoint"`
@@ -68,6 +75,11 @@ func ParseFlags() *LancerConfig {
 	flag.StringVar(&cfg.Auth.Email, "email", "lancer@email.com", "Email to login to dashboard")
 	flag.StringVar(&cfg.Auth.Password, "password", "password", "Password to login to dashboard")
 
+	flag.BoolVar(&cfg.Store.AWS.Store, "aws-store", false, "Whether to store media files in AWS S3.")
+	flag.StringVar(&cfg.Store.AWS.Bucket, "aws-bucket", "", "S3 Bucket name to store file in.")
+	flag.StringVar(&cfg.Store.AWS.Region, "aws-region", "", "AWS Region to store file.")
+	flag.StringVar(&cfg.Store.AWS.Config, "aws-config", "", "File path for AWS configuration files.")
+
 	flag.Parse()
 
 	if filePath != "" {
@@ -83,6 +95,11 @@ func ParseFlags() *LancerConfig {
 			log.Fatalf("[Lancer Error] Invalid file content for configuration (%v)", err)
 		}
 	}
+
+	fmt.Println(cfg.Store.AWS.Bucket)
+	fmt.Println(cfg.Store.AWS.Config)
+	fmt.Println(cfg.Store.AWS.Store)
+	fmt.Println(cfg.Store.AWS.Region)
 
 	cfg.IsAwsProvided = false
 
@@ -117,6 +134,20 @@ func ParseFlags() *LancerConfig {
 
 	if cfg.Store.Local.Temp == "" {
 		log.Fatalf("[Lancer Error] Local Store temp can't be empty. If using a config file see this reference : (https://lancer.dev/cfg-file) (use -store-local-temp=<temp-path>)")
+	}
+
+	if cfg.Store.AWS.Store {
+		if cfg.Store.AWS.Bucket == "" {
+			log.Fatalf("[Lancer Error] AWS Bucket name can't be empty, If using a config file see this reference : (https://lancer.dev/cfg-file) (use -aws-bucket=<bucket-name>)")
+		}
+
+		if cfg.Store.AWS.Region == "" {
+			log.Fatalf("[Lancer Error] AWS Region  can't be empty, If using a config file see this reference : (https://lancer.dev/cfg-file) (use -aws-region=<region>)")
+		}
+
+		if cfg.Store.AWS.Config == "" {
+			log.Fatalf("[Lancer Error] AWS Config file path can't be empty. If using a config file see this reference : (http://lancer.dev/cfg-file) (use -aws-config=<config-file-path>)")
+		}
 	}
 
 	return cfg

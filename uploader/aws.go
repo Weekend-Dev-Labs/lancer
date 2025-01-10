@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -47,18 +48,27 @@ type CompleteMultipartParam struct {
 }
 
 func NewAwsUploader(cfg *config.LancerConfig) *AwsUploader {
-	config, _ := awsConfig.LoadDefaultConfig(
-		context.TODO(),
-		awsConfig.WithSharedConfigFiles([]string{""}),
-	)
+	if cfg.Store.AWS.Store {
+		config, err := awsConfig.LoadDefaultConfig(
+			context.TODO(),
+			awsConfig.WithSharedConfigFiles([]string{cfg.Store.AWS.Config}),
+			awsConfig.WithRegion(cfg.Store.AWS.Region),
+		)
 
-	client := s3.NewFromConfig(config)
+		if err != nil {
+			log.Fatalf("[LANCER ERROR] Invalid AWS Configuration (%v)", err.Error())
+		}
 
-	return &AwsUploader{
-		s3Client: client,
-		mu:       sync.Mutex{},
-		sessions: make(map[string]*MultipartSessionInfo),
+		client := s3.NewFromConfig(config)
+
+		return &AwsUploader{
+			s3Client: client,
+			mu:       sync.Mutex{},
+			sessions: make(map[string]*MultipartSessionInfo),
+		}
 	}
+
+	return nil
 }
 
 func (au *AwsUploader) CreateMultipart(bucket string, key string, sessionInfo *types.SessionInfo) error {
