@@ -35,13 +35,17 @@ func (l *LocalUploader) CreateChunkUploadSession(sessionInfo *types.SessionInfo)
 	return nil
 }
 
-func (l *LocalUploader) Upload(sessionInfo *types.SessionInfo, file []byte) error {
-	return l.fio.WriteToStoreOnly(sessionInfo.FileName, file)
+func (l *LocalUploader) Upload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
+	err := l.fio.WriteToStoreOnly(sessionInfo.FileName, file)
+
+	return nil, err
 }
 
 func (l *LocalUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []byte) error {
 	return l.fio.AddChunk(sessionInfo.TempPath, int(sessionInfo.CurrentChunk)+1, file)
 }
+
+// func (l *LocalUploader) CompletePartUpload(sess)
 
 func (l *LocalUploader) CancelUploadSession(sessionInfo *types.SessionInfo) error {
 	return os.RemoveAll(sessionInfo.TempPath)

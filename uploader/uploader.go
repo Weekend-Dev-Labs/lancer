@@ -8,7 +8,9 @@ import (
 type IUploader interface {
 	CreateChunkUploadSession(sessionInfo *types.SessionInfo) error
 
-	Upload(sessionInfo *types.SessionInfo, file []byte) error
+	Upload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error)
+	CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error)
+
 	HandlePartUpload(sessionInfo *types.SessionInfo, file []byte) error
 
 	CancelUploadSession(sessionInfo *types.SessionInfo) error

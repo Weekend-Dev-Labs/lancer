@@ -20,6 +20,7 @@ import (
 type AwsUploader struct {
 	mu       sync.Mutex
 	s3Client *s3.Client
+	config   *config.LancerConfig
 	sessions map[string]*MultipartSessionInfo
 }
 
@@ -74,6 +75,7 @@ func NewAwsUploader(cfg *config.LancerConfig) *AwsUploader {
 			s3Client: client,
 			mu:       sync.Mutex{},
 			sessions: make(map[string]*MultipartSessionInfo),
+			config:   cfg,
 		}
 	}
 
@@ -224,4 +226,120 @@ func (au *AwsUploader) UploadFullFile(params *UploadFullFileParam) (*s3.PutObjec
 		Key:    &params.Key,
 		Body:   params.File,
 	})
+}
+
+// New Functions from here ----->
+
+func (au *AwsUploader) CreateChunkUploadSession(sessionInfo *types.SessionInfo) error {
+	fileKey := fmt.Sprintf("%d_%s", time.Now().Unix(), sessionInfo.FileName)
+
+	upload, err := au.s3Client.CreateMultipartUpload(context.TODO(), &s3.CreateMultipartUploadInput{
+		Bucket: &au.config.Store.AWS.Bucket,
+		Key:    &fileKey,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	au.mu.Lock()
+	au.sessions[sessionInfo.ID] = &MultipartSessionInfo{
+		UploadInfo: upload,
+		Parts:      s3Types.CompletedMultipartUpload{},
+	}
+	au.mu.Unlock()
+
+	return nil
+}
+
+func (au *AwsUploader) Upload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
+	return au.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: &au.config.Store.AWS.Bucket,
+		Key:    &sessionInfo.FileName,
+		Body:   bytes.NewReader(file),
+	})
+}
+
+func (au *AwsUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []byte) error {
+	au.mu.Lock()
+	info, isExists := au.sessions[sessionInfo.ID]
+	au.mu.Unlock()
+
+	if !isExists {
+		return fmt.Errorf("no upload session found")
+	}
+
+	partNumber := int32(sessionInfo.CurrentChunk)
+	partNumber += 1
+
+	resp, err := au.s3Client.UploadPart(context.TODO(), &s3.UploadPartInput{
+		Bucket:     info.UploadInfo.Bucket,
+		Key:        info.UploadInfo.Key,
+		UploadId:   info.UploadInfo.UploadId,
+		PartNumber: &partNumber,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	info.Parts.Parts = append(info.Parts.Parts, s3Types.CompletedPart{
+		ETag:       resp.ETag,
+		PartNumber: &partNumber,
+	})
+
+	au.mu.Lock()
+	au.sessions[sessionInfo.ID] = info
+	au.mu.Unlock()
+
+	return nil
+}
+
+func (au *AwsUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
+	au.mu.Lock()
+	info, isExists := au.sessions[sessionInfo.ID]
+	au.mu.Unlock()
+
+	if !isExists {
+		return fmt.Errorf("no such session exists"), nil
+	}
+
+	resp, err := au.s3Client.CompleteMultipartUpload(context.TODO(), &s3.CompleteMultipartUploadInput{
+		Bucket:          info.UploadInfo.Bucket,
+		Key:             info.UploadInfo.Key,
+		UploadId:        info.UploadInfo.UploadId,
+		MultipartUpload: &info.Parts,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	au.mu.Lock()
+	delete(au.sessions, sessionInfo.ID)
+	au.mu.Unlock()
+
+	return resp, nil
+}
+
+func (au *AwsUploader) CancelUploadSession(sessionInfo *types.SessionInfo) error {
+	au.mu.Lock()
+	session, isExists := au.sessions[sessionInfo.ID]
+	au.mu.Unlock()
+
+	if !isExists {
+		return fmt.Errorf("no such upload session found")
+	}
+
+	_, err := au.s3Client.AbortMultipartUpload(context.TODO(), &s3.AbortMultipartUploadInput{
+		Bucket:   session.UploadInfo.Bucket,
+		Key:      session.UploadInfo.Bucket,
+		UploadId: session.UploadInfo.UploadId,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
