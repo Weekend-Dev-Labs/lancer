@@ -293,6 +293,7 @@ func (au *AwsUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []b
 		Key:        info.UploadInfo.Key,
 		UploadId:   info.UploadInfo.UploadId,
 		PartNumber: &partNumber,
+		Body:       bytes.NewReader(file),
 	})
 
 	if err != nil {
@@ -312,6 +313,12 @@ func (au *AwsUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []b
 }
 
 func (au *AwsUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (*UploadAck, error) {
+	err := au.HandlePartUpload(sessionInfo, file)
+
+	if err != nil {
+		return nil, err
+	}
+
 	au.mu.Lock()
 	info, isExists := au.sessions[sessionInfo.ID]
 	au.mu.Unlock()
@@ -328,8 +335,11 @@ func (au *AwsUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file [
 	})
 
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil, err
 	}
+
+	fmt.Println(resp)
 
 	au.mu.Lock()
 	delete(au.sessions, sessionInfo.ID)
@@ -337,13 +347,13 @@ func (au *AwsUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file [
 
 	return &UploadAck{
 		Provider: types.UploaderAws,
-		ProviderMetadata: map[string]string{
+		ProviderMetadata: map[string]interface{}{
 			"bucket":   au.config.Store.AWS.Bucket,
 			"key":      sessionInfo.FileName,
-			"checksum": *resp.ChecksumSHA256,
-			"etag":     *resp.ETag,
+			"checksum": resp.ChecksumSHA256,
+			"etag":     resp.ETag,
 		},
-		Checksum: *resp.ChecksumSHA256,
+		Checksum: "",
 		FilePath: "",
 	}, nil
 }
@@ -366,6 +376,10 @@ func (au *AwsUploader) CancelUploadSession(sessionInfo *types.SessionInfo) error
 	if err != nil {
 		return err
 	}
+
+	au.mu.Lock()
+	delete(au.sessions, sessionInfo.ID)
+	au.mu.Unlock()
 
 	return nil
 }

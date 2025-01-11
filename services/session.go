@@ -173,7 +173,7 @@ func (s *Services) serviceEndSession(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 
-	s.tasks.CancelTask(sessionInfo.SessionID)
+	s.tasks.Execute(sessionInfo.SessionID)
 
 	return c.JSON(http.StatusAccepted, map[string]string{
 		"message": "session ended",

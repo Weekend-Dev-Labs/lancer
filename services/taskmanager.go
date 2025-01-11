@@ -20,6 +20,7 @@ type Task struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	extension chan time.Duration
+	execute   chan bool
 }
 
 func NewTaskManager(repo *repo.Repo) *TaskManager {
@@ -46,21 +47,11 @@ func (tm *TaskManager) AddTask(id string, duration time.Duration, task func(ctx 
 		ctx:       ctx,
 		cancel:    cancel,
 		extension: make(chan time.Duration, 1),
+		execute:   make(chan bool, 1),
 	}
 	tm.tasks[id] = t
 
 	go func() {
-
-		// select {
-		// case <-ctx.Done():
-		// 	if ctx.Err() == context.Canceled {
-		// 		fmt.Println("Task cancelled:", id)
-		// 	} else if ctx.Err() == context.DeadlineExceeded {
-		// 		fmt.Println("Task timed out:", id)
-		// 		task(ctx)
-		// 	}
-		// }
-
 		defer func() {
 			tm.mu.Lock()
 			delete(tm.tasks, id)
@@ -75,11 +66,13 @@ func (tm *TaskManager) AddTask(id string, duration time.Duration, task func(ctx 
 				t.ctx = ctx
 				t.cancel = cancel
 
+			case <-t.execute:
+				task(t.ctx)
+				return
+
 			case <-t.ctx.Done():
 				if t.ctx.Err() == context.Canceled {
-					fmt.Errorf("task cancelled: ", id)
 				} else if t.ctx.Err() == context.DeadlineExceeded {
-					fmt.Println("Task timedout: ", id)
 					task(t.ctx)
 				}
 				return
@@ -105,19 +98,22 @@ func (tm *TaskManager) ExtendDuration(id string, extension time.Duration) {
 	}
 }
 
-func (tm *TaskManager) CancelTask(id string) {
+func (tm *TaskManager) Execute(id string) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
-	if t, exists := tm.tasks[id]; exists {
-		t.cancel()
-		tm.repo.DeleteSession(id)
-		delete(tm.tasks, id)
+	if task, exists := tm.tasks[id]; exists {
+		select {
+		case task.execute <- true:
+			return
+		default:
+			return
+		}
 	}
 }
 
 func (tm *TaskManager) CancelWithBaseTask(path string, id string) error {
-	tm.CancelTask(id)
+	// tm.CancelTask(id)
 
 	return BaseTask(path, context.Background())
 }

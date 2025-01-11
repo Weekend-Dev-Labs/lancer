@@ -164,7 +164,6 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 	// }
 
 	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
-
 		uploadRes, err := uploadHandler.CompletePartUpload(sessionInfo, fileData)
 
 		if err != nil {
@@ -178,16 +177,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			return err
 		}
 
-		// filePath, checksum, err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData)
-
-		// if err != nil {
-		// 	return nil
-		// }
-
-		// if err := s.tasks.CancelWithBaseTask(sessionInfo.TempPath, session.SessionID); err != nil {
-		// 	fmt.Println(err.Error())
-		// 	return err
-		// }
+		s.tasks.Execute(sessionInfo.ID)
 
 		ext := filepath.Ext(sessionInfo.FileName)
 		mimeType := mime.TypeByExtension(ext)
