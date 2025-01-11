@@ -21,7 +21,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
-	"github.com/weekend-dev-labs/lancer/uploader"
 	"github.com/weekend-dev-labs/lancer/utils"
 )
 
@@ -98,13 +97,6 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 
 	if sessionInfo.MaxChunk == 1 {
 
-		// ack, err := s.fio.WriteToStoreOnly(sessionInfo.FileName, fileData)
-		// if err != nil {
-		// 	return err
-		// }
-
-		// s.tasks.CancelTask(session.SessionID)
-
 		uploadRes, err := uploadHandler.Upload(sessionInfo, fileData)
 
 		if err != nil {
@@ -140,29 +132,6 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		})
 	}
 
-	// if sessionInfo.Provider == types.UploaderAws {
-	// 	err := s.uploader.Aws.HandleMultipartUploads(sessionInfo.ID, int32(chunkCount), sessionInfo, bytes.NewReader(fileData))
-
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	if err := s.repo.UpdateSessionById(session.SessionID, &types.SessionInfo{
-	// 		CurrentChunk: int64(chunkCount),
-	// 		FileName:     sessionInfo.FileName,
-	// 		TempPath:     sessionInfo.TempPath,
-	// 		Provider:     sessionInfo.Provider,
-	// 	}); err != nil {
-	// 		return err
-	// 	}
-
-	// 	s.tasks.ExtendDuration(session.SessionID, time.Duration(time.Minute*5))
-
-	// 	return c.JSON(http.StatusAccepted, map[string]string{
-	// 		"message": "uploaded",
-	// 	})
-	// }
-
 	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
 		uploadRes, err := uploadHandler.CompletePartUpload(sessionInfo, fileData)
 
@@ -178,9 +147,6 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		}
 
 		s.tasks.Execute(sessionInfo.ID)
-
-		ext := filepath.Ext(sessionInfo.FileName)
-		mimeType := mime.TypeByExtension(ext)
 
 		file, err := s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
 			FileName: sessionInfo.FileName,
@@ -322,38 +288,9 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 	})
 }
 
-func (s *Services) serviceUploadFileTestAws(c echo.Context) error {
-	file, err := c.FormFile("file")
-
-	if err != nil {
-		return err
-	}
-
-	content, err := file.Open()
-
-	if err != nil {
-		return err
-	}
-
-	res, err := s.uploader.Aws.UploadFullFile(&uploader.UploadFullFileParam{
-		Bucket: s.cfg.Store.AWS.Bucket,
-		Key:    "lancer-test",
-		File:   content,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"info": res,
-	})
-}
-
 func (s *Services) registerUploaderService() {
 	group := s.e.Group("/upload")
 
-	group.POST("/aws", s.serviceUploadFileTestAws)
 	group.GET("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceGetUploads))
 	group.POST("/delete", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken, types.AuthServerCredentials}, s.serviceDeleteUploads))
 	group.POST("", s.middlewareAuth([]types.AuthKeys{types.AuthSessionToken}, s.serviceHandlerChunkUploader))
