@@ -1,10 +1,10 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -34,6 +34,14 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusOK, map[string]string{
 			"error": err.Error(),
+		})
+	}
+
+	uploadHandler := s.appUploader.GetUploaderByType(sessionInfo.Provider)
+
+	if uploadHandler == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid provider to upload file",
 		})
 	}
 
@@ -85,72 +93,120 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		})
 	}
 
+	ext := filepath.Ext(sessionInfo.FileName)
+	mimeType := mime.TypeByExtension(ext)
+
 	if sessionInfo.MaxChunk == 1 {
 
-		if err := s.fio.WriteToStoreOnly(sessionInfo.FileName, fileData); err != nil {
-			return err
-		}
+		// ack, err := s.fio.WriteToStoreOnly(sessionInfo.FileName, fileData)
+		// if err != nil {
+		// 	return err
+		// }
 
-		s.tasks.CancelTask(session.SessionID)
+		// s.tasks.CancelTask(session.SessionID)
 
-		return c.JSON(http.StatusAccepted, map[string]string{
-			"message": "file uploaded",
-		})
-	}
-
-	if sessionInfo.Provider == types.UploaderAws {
-		err := s.uploader.Aws.HandleMultipartUploads(sessionInfo.ID, int32(chunkCount), sessionInfo, bytes.NewReader(fileData))
+		uploadRes, err := uploadHandler.Upload(sessionInfo, fileData)
 
 		if err != nil {
 			return err
 		}
 
-		if err := s.repo.UpdateSessionById(session.SessionID, &types.SessionInfo{
-			CurrentChunk: int64(chunkCount),
-			FileName:     sessionInfo.FileName,
-			TempPath:     sessionInfo.TempPath,
-			Provider:     sessionInfo.Provider,
-		}); err != nil {
-			return err
-		}
-
-		s.tasks.ExtendDuration(session.SessionID, time.Duration(time.Minute*5))
-
-		return c.JSON(http.StatusAccepted, map[string]string{
-			"message": "uploaded",
-		})
-	}
-
-	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
-
-		filePath, checksum, err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData)
+		b, err := json.Marshal(uploadRes.ProviderMetadata)
 
 		if err != nil {
-			return nil
-		}
-
-		if err := s.tasks.CancelWithBaseTask(sessionInfo.TempPath, session.SessionID); err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("Error during marshalling:", err)
 			return err
 		}
 
-		ext := filepath.Ext(sessionInfo.FileName)
-		mimeType := mime.TypeByExtension(ext)
-
-		file, err := s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
+		_, err = s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
 			FileName: sessionInfo.FileName,
-			FilePath: filePath,
+			FilePath: uploadRes.FilePath,
 			FileSize: sessionInfo.FileSize,
 			FileType: pgtype.Text{
 				String: mimeType,
 				Valid:  true,
 			},
 			UploadedBy: sessionInfo.OwnerID,
-			Provider:   "local",
+			Provider:   string(sessionInfo.Provider),
 			Checksum: pgtype.Text{
 				String: checksum,
 				Valid:  true,
 			},
+			ProviderMetadata: b,
+		})
+
+		return c.JSON(http.StatusAccepted, map[string]string{
+			"message": "file uploaded",
+		})
+	}
+
+	// if sessionInfo.Provider == types.UploaderAws {
+	// 	err := s.uploader.Aws.HandleMultipartUploads(sessionInfo.ID, int32(chunkCount), sessionInfo, bytes.NewReader(fileData))
+
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	if err := s.repo.UpdateSessionById(session.SessionID, &types.SessionInfo{
+	// 		CurrentChunk: int64(chunkCount),
+	// 		FileName:     sessionInfo.FileName,
+	// 		TempPath:     sessionInfo.TempPath,
+	// 		Provider:     sessionInfo.Provider,
+	// 	}); err != nil {
+	// 		return err
+	// 	}
+
+	// 	s.tasks.ExtendDuration(session.SessionID, time.Duration(time.Minute*5))
+
+	// 	return c.JSON(http.StatusAccepted, map[string]string{
+	// 		"message": "uploaded",
+	// 	})
+	// }
+
+	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
+
+		uploadRes, err := uploadHandler.CompletePartUpload(sessionInfo, fileData)
+
+		if err != nil {
+			return err
+		}
+
+		b, err := json.Marshal(uploadRes.ProviderMetadata)
+
+		if err != nil {
+			fmt.Println("Error during marshalling:", err)
+			return err
+		}
+
+		// filePath, checksum, err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData)
+
+		// if err != nil {
+		// 	return nil
+		// }
+
+		// if err := s.tasks.CancelWithBaseTask(sessionInfo.TempPath, session.SessionID); err != nil {
+		// 	fmt.Println(err.Error())
+		// 	return err
+		// }
+
+		ext := filepath.Ext(sessionInfo.FileName)
+		mimeType := mime.TypeByExtension(ext)
+
+		file, err := s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
+			FileName: sessionInfo.FileName,
+			FilePath: uploadRes.FilePath,
+			FileSize: sessionInfo.FileSize,
+			FileType: pgtype.Text{
+				String: mimeType,
+				Valid:  true,
+			},
+			UploadedBy: sessionInfo.OwnerID,
+			Provider:   string(sessionInfo.Provider),
+			Checksum: pgtype.Text{
+				String: uploadRes.Checksum,
+				Valid:  true,
+			},
+			ProviderMetadata: b,
 		})
 
 		if err != nil {
@@ -179,7 +235,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		})
 	}
 
-	if err := s.fio.AddChunk(sessionInfo.TempPath, int(sessionInfo.CurrentChunk)+1, fileData); err != nil {
+	if err := uploadHandler.HandlePartUpload(sessionInfo, fileData); err != nil {
 		return err
 	}
 

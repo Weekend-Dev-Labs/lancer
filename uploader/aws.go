@@ -252,12 +252,28 @@ func (au *AwsUploader) CreateChunkUploadSession(sessionInfo *types.SessionInfo) 
 	return nil
 }
 
-func (au *AwsUploader) Upload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
-	return au.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+func (au *AwsUploader) Upload(sessionInfo *types.SessionInfo, file []byte) (*UploadAck, error) {
+	resp, err := au.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: &au.config.Store.AWS.Bucket,
 		Key:    &sessionInfo.FileName,
 		Body:   bytes.NewReader(file),
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &UploadAck{
+		Provider: types.UploaderAws,
+		ProviderMetadata: map[string]string{
+			"bucket":   au.config.Store.AWS.Bucket,
+			"key":      sessionInfo.FileName,
+			"checksum": *resp.ChecksumSHA256,
+			"etag":     *resp.ETag,
+		},
+		Checksum: *resp.ChecksumSHA256,
+		FilePath: "",
+	}, nil
 }
 
 func (au *AwsUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []byte) error {
@@ -295,13 +311,13 @@ func (au *AwsUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []b
 	return nil
 }
 
-func (au *AwsUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
+func (au *AwsUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (*UploadAck, error) {
 	au.mu.Lock()
 	info, isExists := au.sessions[sessionInfo.ID]
 	au.mu.Unlock()
 
 	if !isExists {
-		return fmt.Errorf("no such session exists"), nil
+		return nil, fmt.Errorf("no such session exists")
 	}
 
 	resp, err := au.s3Client.CompleteMultipartUpload(context.TODO(), &s3.CompleteMultipartUploadInput{
@@ -319,7 +335,17 @@ func (au *AwsUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file [
 	delete(au.sessions, sessionInfo.ID)
 	au.mu.Unlock()
 
-	return resp, nil
+	return &UploadAck{
+		Provider: types.UploaderAws,
+		ProviderMetadata: map[string]string{
+			"bucket":   au.config.Store.AWS.Bucket,
+			"key":      sessionInfo.FileName,
+			"checksum": *resp.ChecksumSHA256,
+			"etag":     *resp.ETag,
+		},
+		Checksum: *resp.ChecksumSHA256,
+		FilePath: "",
+	}, nil
 }
 
 func (au *AwsUploader) CancelUploadSession(sessionInfo *types.SessionInfo) error {

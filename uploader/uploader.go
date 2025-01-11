@@ -8,8 +8,8 @@ import (
 type IUploader interface {
 	CreateChunkUploadSession(sessionInfo *types.SessionInfo) error
 
-	Upload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error)
-	CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error)
+	Upload(sessionInfo *types.SessionInfo, file []byte) (*UploadAck, error)
+	CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (*UploadAck, error)
 
 	HandlePartUpload(sessionInfo *types.SessionInfo, file []byte) error
 
@@ -21,6 +21,13 @@ type Uploader struct {
 	awsUploader   IUploader
 }
 
+type UploadAck struct {
+	Provider         types.UploaderProvider
+	ProviderMetadata interface{}
+	Checksum         string
+	FilePath         string
+}
+
 func NewUploader(cfg *config.LancerConfig) *Uploader {
 	localUploader := NewLocalUploader(cfg.Store.Local.Temp, cfg.Store.Local.Path)
 	awsUploader := NewAwsUploader(cfg)
@@ -29,4 +36,16 @@ func NewUploader(cfg *config.LancerConfig) *Uploader {
 		localUploader: localUploader,
 		awsUploader:   awsUploader,
 	}
+}
+
+func (u *Uploader) GetUploaderByType(provider types.UploaderProvider) IUploader {
+	switch provider {
+	case types.UploaderAws:
+		return u.awsUploader
+
+	case types.UploaderLocal:
+		return u.localUploader
+	}
+
+	return nil
 }

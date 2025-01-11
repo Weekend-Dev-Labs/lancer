@@ -40,26 +40,33 @@ func (l *LocalUploader) CreateChunkUploadSession(sessionInfo *types.SessionInfo)
 	return nil
 }
 
-func (l *LocalUploader) Upload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
-	err := l.fio.WriteToStoreOnly(sessionInfo.FileName, file)
+func (l *LocalUploader) Upload(sessionInfo *types.SessionInfo, file []byte) (*UploadAck, error) {
+	path, err := l.fio.WriteToStoreOnly(sessionInfo.FileName, file)
 
-	return nil, err
+	return &UploadAck{
+		Provider:         types.UploaderLocal,
+		ProviderMetadata: map[string]string{},
+		Checksum:         "",
+		FilePath:         path,
+	}, err
 }
 
 func (l *LocalUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []byte) error {
 	return l.fio.AddChunk(sessionInfo.TempPath, int(sessionInfo.CurrentChunk)+1, file)
 }
 
-func (l *LocalUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
+func (l *LocalUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (*UploadAck, error) {
 	filePath, checksum, err := l.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, file)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &LocalUploaderCompleteRes{
-		FilePath: filePath,
-		Checkum:  checksum,
+	return &UploadAck{
+		Provider:         types.UploaderLocal,
+		ProviderMetadata: map[string]string{},
+		Checksum:         checksum,
+		FilePath:         filePath,
 	}, nil
 }
 

@@ -23,7 +23,8 @@ const (
 )
 
 const (
-	UploaderAws = UploaderProvider("AWS")
+	UploaderAws   = UploaderProvider("AWS")
+	UploaderLocal = UploaderProvider("LOCAL")
 )
 
 type CreateSessionPayload struct {
@@ -31,7 +32,7 @@ type CreateSessionPayload struct {
 	ChunkSize int64            `json:"chunk_size" validate:"required"`
 	MaxChunk  int64            `json:"max_chunk" validate:"required"`
 	FileName  string           `json:"file_name" validate:"required"`
-	Provider  UploaderProvider `json:"provider"`
+	Provider  UploaderProvider `json:"provider" validate:"required"`
 }
 
 type SessionTokenPayload struct {

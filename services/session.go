@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,17 +24,25 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		return err
 	}
 
-	var isAwsUploader bool
+	uploadHandler := s.appUploader.GetUploaderByType(payload.Provider)
 
-	switch payload.Provider {
-	case types.UploaderAws:
-		isAwsUploader = true
-		if !s.cfg.Store.AWS.Store {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "aws is not configured to handle uploads",
-			})
-		}
+	if uploadHandler == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid provider to create session",
+		})
 	}
+
+	// var isAwsUploader bool
+
+	// switch payload.Provider {
+	// case types.UploaderAws:
+	// 	isAwsUploader = true
+	// 	if !s.cfg.Store.AWS.Store {
+	// 		return c.JSON(http.StatusBadRequest, map[string]string{
+	// 			"error": "aws is not configured to handle uploads",
+	// 		})
+	// 	}
+	// }
 
 	session, err := s.repo.CreateSession(&types.SessionInfo{
 		FileSize:     payload.FileSize,
@@ -65,31 +72,39 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		})
 	}
 
-	dirPath := session.TempPath
-	if err := os.MkdirAll(dirPath, os.ModeDir); err != nil {
+	if err := uploadHandler.CreateChunkUploadSession(session); err != nil {
 		return err
 	}
 
-	if isAwsUploader {
-		err := s.uploader.Aws.CreateMultipart(s.cfg.Store.AWS.Bucket, session)
-
-		if err != nil {
-			fmt.Println(err.Error())
-			return err
-		}
-
-		fmt.Println("Created aws upload session")
-	}
-
-	s.tasks.AddTask(session.ID, time.Duration(time.Second*100), func(ctx context.Context) {
-		if isAwsUploader {
-			s.uploader.Aws.AbortMultipartUpload(session.ID)
-		} else {
-			if err := os.RemoveAll(dirPath); err != nil {
-				fmt.Printf(err.Error())
-			}
-		}
+	s.tasks.AddTask(session.ID, time.Duration(time.Second*300), func(ctx context.Context) {
+		uploadHandler.CancelUploadSession(session)
 	})
+
+	// dirPath := session.TempPath
+	// if err := os.MkdirAll(dirPath, os.ModeDir); err != nil {
+	// 	return err
+	// }
+
+	// if isAwsUploader {
+	// 	err := s.uploader.Aws.CreateMultipart(s.cfg.Store.AWS.Bucket, session)
+
+	// 	if err != nil {
+	// 		fmt.Println(err.Error())
+	// 		return err
+	// 	}
+
+	// 	fmt.Println("Created aws upload session")
+	// }
+
+	// s.tasks.AddTask(session.ID, time.Duration(time.Second*100), func(ctx context.Context) {
+	// 	if isAwsUploader {
+	// 		s.uploader.Aws.AbortMultipartUpload(session.ID)
+	// 	} else {
+	// 		if err := os.RemoveAll(dirPath); err != nil {
+	// 			fmt.Printf(err.Error())
+	// 		}
+	// 	}
+	// })
 
 	go s.webhook.SendEvent(EventSessionCreate, session)
 

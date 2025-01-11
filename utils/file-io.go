@@ -27,10 +27,14 @@ func (fio *FileIO) AddChunk(path string, chunkCount int, fileData []byte) error 
 	return os.WriteFile(chunkPath, fileData, os.ModeAppend)
 }
 
-func (fio *FileIO) WriteToStoreOnly(fileName string, data []byte) error {
+func (fio *FileIO) WriteToStoreOnly(fileName string, data []byte) (string, error) {
 	filePath := fmt.Sprintf("%s/%d_%s", fio.local, time.Now().Unix(), fileName)
 
-	return os.WriteFile(filePath, data, os.ModeAppend)
+	if err := os.WriteFile(filePath, data, os.ModeAppend); err != nil {
+		return "", err
+	}
+
+	return filePath, nil
 }
 
 func (fio *FileIO) MergeChunksAndWriteToStore(path string, fileName string, totalChunks int64, data []byte) (string, string, error) {

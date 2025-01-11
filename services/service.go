@@ -12,39 +12,45 @@ import (
 )
 
 type Services struct {
-	e          *echo.Group
-	db         *db.Queries
-	cfg        *config.LancerConfig
-	redisCache *cache.Cache
-	tasks      *TaskManager
-	repo       *repo.Repo
-	fio        *utils.FileIO
-	webhook    *Webhook
-	logger     *logrus.Logger
-	uploader   *ServiceUploader
+	e           *echo.Group
+	db          *db.Queries
+	cfg         *config.LancerConfig
+	redisCache  *cache.Cache
+	tasks       *TaskManager
+	repo        *repo.Repo
+	fio         *utils.FileIO
+	webhook     *Webhook
+	logger      *logrus.Logger
+	uploader    *ServiceUploader
+	appUploader *uploader.Uploader
 }
 
 type ServiceUploader struct {
 	Aws *uploader.AwsUploader
 }
 
-func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo, logger *logrus.Logger, uploader *ServiceUploader) {
+func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo, logger *logrus.Logger, awsUploader *ServiceUploader) {
 
 	taskManager := NewTaskManager(repo)
 	webhook := NewWebhookNotifier(cfg.WebhookEndpoint)
 	fio := utils.NewFileIO(cfg.Store.Local.Path, cfg.Store.Local.Temp)
 
+	// appUploader := uploader.
+
+	appUploader := uploader.NewUploader(cfg)
+
 	services := Services{
-		e:          e,
-		db:         db,
-		cfg:        cfg,
-		redisCache: redisCache,
-		tasks:      taskManager,
-		repo:       repo,
-		fio:        fio,
-		webhook:    webhook,
-		logger:     logger,
-		uploader:   uploader,
+		e:           e,
+		db:          db,
+		cfg:         cfg,
+		redisCache:  redisCache,
+		tasks:       taskManager,
+		repo:        repo,
+		fio:         fio,
+		webhook:     webhook,
+		logger:      logger,
+		uploader:    awsUploader,
+		appUploader: appUploader,
 	}
 
 	// registering the services
