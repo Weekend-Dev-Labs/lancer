@@ -13,6 +13,11 @@ type LocalUploader struct {
 	fio       *utils.FileIO
 }
 
+type LocalUploaderCompleteRes struct {
+	FilePath string
+	Checkum  string
+}
+
 func NewLocalUploader(tempPath string, storePath string) *LocalUploader {
 	fio := utils.NewFileIO(storePath, tempPath)
 
@@ -45,7 +50,18 @@ func (l *LocalUploader) HandlePartUpload(sessionInfo *types.SessionInfo, file []
 	return l.fio.AddChunk(sessionInfo.TempPath, int(sessionInfo.CurrentChunk)+1, file)
 }
 
-// func (l *LocalUploader) CompletePartUpload(sess)
+func (l *LocalUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file []byte) (interface{}, error) {
+	filePath, checksum, err := l.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, file)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &LocalUploaderCompleteRes{
+		FilePath: filePath,
+		Checkum:  checksum,
+	}, nil
+}
 
 func (l *LocalUploader) CancelUploadSession(sessionInfo *types.SessionInfo) error {
 	return os.RemoveAll(sessionInfo.TempPath)

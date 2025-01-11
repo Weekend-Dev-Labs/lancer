@@ -18,12 +18,15 @@ type IUploader interface {
 
 type Uploader struct {
 	localUploader IUploader
+	awsUploader   IUploader
 }
 
 func NewUploader(cfg *config.LancerConfig) *Uploader {
 	localUploader := NewLocalUploader(cfg.Store.Local.Temp, cfg.Store.Local.Path)
+	awsUploader := NewAwsUploader(cfg)
 
 	return &Uploader{
 		localUploader: localUploader,
+		awsUploader:   awsUploader,
 	}
 }
