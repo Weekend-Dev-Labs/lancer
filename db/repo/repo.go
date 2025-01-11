@@ -93,6 +93,7 @@ func (r *Repo) CreateSession(session *types.SessionInfo) (*types.SessionInfo, er
 		FileName:     session.FileName,
 		TempPath:     tempPath,
 		OwnerID:      session.OwnerID,
+		Provider:     session.Provider,
 		CurrentChunk: 0,
 	}
 
@@ -138,7 +139,8 @@ func (r *Repo) CreateSession(session *types.SessionInfo) (*types.SessionInfo, er
 			String: r.getTempPath(ack.ID.String(), ack.FileName.String),
 			Valid:  true,
 		},
-		ID: ack.ID,
+		ID:       ack.ID,
+		Provider: dbSessionData.Provider,
 	}); err != nil {
 		return nil, nil
 	}
@@ -201,6 +203,7 @@ func (r *Repo) GetSessionById(id string) (*types.SessionInfo, error) {
 	}
 
 	return &types.SessionInfo{
+		ID:           sessionInfo.ID.String(),
 		FileSize:     sessionInfo.FileSize,
 		ChunkSize:    sessionInfo.ChunkSize,
 		MaxChunk:     sessionInfo.MaxChunk,
@@ -208,6 +211,7 @@ func (r *Repo) GetSessionById(id string) (*types.SessionInfo, error) {
 		TempPath:     sessionInfo.TempPath.String,
 		OwnerID:      sessionInfo.OwnerID.String,
 		CurrentChunk: sessionInfo.CurrentChunk.Int64,
+		Provider:     types.UploaderProvider(sessionInfo.Provider.String),
 	}, nil
 }
 

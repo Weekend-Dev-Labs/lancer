@@ -25,11 +25,11 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		return err
 	}
 
-	// var isAwsUploader bool
+	var isAwsUploader bool
 
 	switch payload.Provider {
 	case types.UploaderAws:
-		// isAwsUploader = true
+		isAwsUploader = true
 		if !s.cfg.Store.AWS.Store {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "aws is not configured to handle uploads",
@@ -46,6 +46,8 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		CurrentChunk: 0,
 		Provider:     payload.Provider,
 	})
+
+	fmt.Printf(string(session.Provider))
 
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
@@ -68,9 +70,24 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		return err
 	}
 
-	s.tasks.AddTask(session.ID, time.Duration(time.Second*30), func(ctx context.Context) {
-		if err := os.RemoveAll(dirPath); err != nil {
-			fmt.Printf(err.Error())
+	if isAwsUploader {
+		err := s.uploader.Aws.CreateMultipart(s.cfg.Store.AWS.Bucket, session)
+
+		if err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+
+		fmt.Println("Created aws upload session")
+	}
+
+	s.tasks.AddTask(session.ID, time.Duration(time.Second*100), func(ctx context.Context) {
+		if isAwsUploader {
+			s.uploader.Aws.AbortMultipartUpload(session.ID)
+		} else {
+			if err := os.RemoveAll(dirPath); err != nil {
+				fmt.Printf(err.Error())
+			}
 		}
 	})
 

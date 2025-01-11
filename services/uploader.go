@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -97,6 +98,29 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		})
 	}
 
+	if sessionInfo.Provider == types.UploaderAws {
+		err := s.uploader.Aws.HandleMultipartUploads(sessionInfo.ID, int32(chunkCount), sessionInfo, bytes.NewReader(fileData))
+
+		if err != nil {
+			return err
+		}
+
+		if err := s.repo.UpdateSessionById(session.SessionID, &types.SessionInfo{
+			CurrentChunk: int64(chunkCount),
+			FileName:     sessionInfo.FileName,
+			TempPath:     sessionInfo.TempPath,
+			Provider:     sessionInfo.Provider,
+		}); err != nil {
+			return err
+		}
+
+		s.tasks.ExtendDuration(session.SessionID, time.Duration(time.Minute*5))
+
+		return c.JSON(http.StatusAccepted, map[string]string{
+			"message": "uploaded",
+		})
+	}
+
 	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
 
 		filePath, checksum, err := s.fio.MergeChunksAndWriteToStore(sessionInfo.TempPath, sessionInfo.FileName, sessionInfo.MaxChunk, fileData)
@@ -163,6 +187,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 		CurrentChunk: int64(chunkCount),
 		FileName:     sessionInfo.FileName,
 		TempPath:     sessionInfo.TempPath,
+		Provider:     sessionInfo.Provider,
 	}); err != nil {
 		return err
 	}
