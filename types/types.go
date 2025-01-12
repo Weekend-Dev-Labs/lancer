@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/google/uuid"
+	"github.com/weekend-dev-labs/lancer/db"
 )
 
 type ContextKeys string
@@ -67,4 +68,9 @@ type UploadDeletePayload struct {
 type UploadQueryInfo struct {
 	Limit int64 `query:"size"`
 	Page  int64 `query:"page"`
+}
+
+type DeleteUploadFileList struct {
+	db.DeleteDocumentsByIdsRow
+	ProviderMetadata interface{}
 }

@@ -126,6 +126,8 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			ProviderMetadata: b,
 		})
 
+		s.webhook.SendEvent(EventFileUpload, file)
+
 		return c.JSON(http.StatusAccepted, map[string]string{
 			"message": "file uploaded",
 		})
@@ -247,6 +249,8 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 
 	uploadInfo, err := s.db.DeleteDocumentsByIds(context.Background(), payload.ID)
 
+	var withMetadata []types.DeleteUploadFileList
+
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
@@ -262,6 +266,15 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 			defer wg.Done()
 
 			uploadHandler := s.appUploader.GetUploaderByType(types.UploaderProvider(info.Provider))
+
+			var metadata map[string]interface{}
+
+			json.Unmarshal(info.ProviderMetadata, &metadata)
+
+			withMetadata = append(withMetadata, types.DeleteUploadFileList{
+				DeleteDocumentsByIdsRow: info,
+				ProviderMetadata:        metadata,
+			})
 
 			if uploadHandler != nil {
 				if err := uploadHandler.DeleteUpload(&info); err == nil {
@@ -286,7 +299,7 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 
 	wg.Wait()
 
-	s.webhook.SendEvent(EventFileDelete, uploadInfo)
+	s.webhook.SendEvent(EventFileDelete, withMetadata)
 
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": fmt.Sprintf("%d files deleted", len(uploadInfo)),

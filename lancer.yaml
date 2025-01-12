@@ -6,7 +6,7 @@ database:
   name: "lancer-main"
 use-redis: false
 redis: ""
-webhook-endpoint: "http://localhost:3000/api/webhook/lancer"
+webhook-endpoint: "http://localhost:3000/webhook"
 store:
   local:
     path: "store"
