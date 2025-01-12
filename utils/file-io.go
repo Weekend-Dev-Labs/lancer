@@ -72,3 +72,7 @@ func (fio *FileIO) MergeChunksAndWriteToStore(path string, fileName string, tota
 
 	return filePath, checksum, nil
 }
+
+func (fio *FileIO) DeleteFile(path string) error {
+	return os.RemoveAll(path)
+}

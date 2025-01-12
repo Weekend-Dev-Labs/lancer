@@ -10,7 +10,6 @@ import (
 	"log"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -262,19 +261,25 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 		go func(info db.DeleteDocumentsByIdsRow) {
 			defer wg.Done()
 
-			if err := os.RemoveAll(info.FilePath); err == nil {
-				err := s.db.DecrementFileCountAndSizeAndMimetype(context.TODO(), db.DecrementFileCountAndSizeAndMimetypeParams{
-					TotalFileCount:  1,
-					TotalFileSize:   info.FileSize,
-					ID:              s.cfg.MetricsID,
-					FilesByMimetype: []byte(info.FileType.String),
-				})
+			uploadHandler := s.appUploader.GetUploaderByType(types.UploaderProvider(info.Provider))
 
-				if err != nil {
-					s.logger.Log(logrus.ErrorLevel, map[string]string{
-						"error": err.Error(),
+			if uploadHandler != nil {
+				if err := uploadHandler.DeleteUpload(&info); err == nil {
+					err := s.db.DecrementFileCountAndSizeAndMimetype(context.TODO(), db.DecrementFileCountAndSizeAndMimetypeParams{
+						TotalFileCount:  1,
+						TotalFileSize:   info.FileSize,
+						ID:              s.cfg.MetricsID,
+						FilesByMimetype: []byte(info.FileType.String),
 					})
+
+					if err != nil {
+						s.logger.Log(logrus.ErrorLevel, map[string]string{
+							"error": err.Error(),
+						})
+					}
 				}
+			} else {
+				fmt.Println("Invalid upload handler")
 			}
 		}(info)
 	}

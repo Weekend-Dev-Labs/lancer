@@ -79,24 +79,6 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 	s.tasks.AddTask(session.ID, time.Duration(time.Second*300), func(ctx context.Context) {
 		uploadHandler.CancelUploadSession(session)
 	})
-
-	// dirPath := session.TempPath
-	// if err := os.MkdirAll(dirPath, os.ModeDir); err != nil {
-	// 	return err
-	// }
-
-	// if isAwsUploader {
-	// 	err := s.uploader.Aws.CreateMultipart(s.cfg.Store.AWS.Bucket, session)
-
-	// 	if err != nil {
-	// 		fmt.Println(err.Error())
-	// 		return err
-	// 	}
-
-	// 	fmt.Println("Created aws upload session")
-	// }
-
-	// s.tasks.AddTask(session.ID, time.Duration(time.Second*100), func(ctx context.Context) {
 	// 	if isAwsUploader {
 	// 		s.uploader.Aws.AbortMultipartUpload(session.ID)
 	// 	} else {

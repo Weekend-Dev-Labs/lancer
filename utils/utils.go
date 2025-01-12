@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -36,4 +37,8 @@ func StringToPGUUID(uuidStr string) (pgtype.UUID, error) {
 
 func GetTempPath(root string, id string, filename string) string {
 	return root + "/" + id + filename
+}
+
+func GetJsonStruct(byteArr []byte, val interface{}) error {
+	return json.Unmarshal(byteArr, val)
 }

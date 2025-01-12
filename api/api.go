@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/go-playground/validator/v10"
@@ -12,11 +13,11 @@ import (
 	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/db/repo"
 	"github.com/weekend-dev-labs/lancer/services"
-	"github.com/weekend-dev-labs/lancer/uploader"
 )
 
 func StartServer(cfg *config.LancerConfig, db *db.Queries, cache *cache.Cache, logger *logrus.Logger) {
 	e := echo.New()
+	e.HideBanner = true
 
 	e.Validator = &services.LancerValidator{
 		Validator: validator.New(),
@@ -27,11 +28,19 @@ func StartServer(cfg *config.LancerConfig, db *db.Queries, cache *cache.Cache, l
 
 	newRepo := repo.NewRepo(db, cache, cfg)
 
-	awsUploader := uploader.NewAwsUploader(cfg)
+	services.RegisterServices(e.Group("/api"), db, cfg, cache, newRepo, logger)
 
-	services.RegisterServices(e.Group("/api"), db, cfg, cache, newRepo, logger, &services.ServiceUploader{
-		Aws: awsUploader,
-	})
+	startLog := `                                                                              
+   __                        
+  / /  ___ ____  _______ ____
+ / /__/ _ \/ _ \/ __/ -_) __/
+/____/\_,_/_//_/\__/\__/_/    v.1.0.1
+
+Thanks for using Lancer !!
+                             
+	`
+
+	fmt.Println(startLog)
 
 	if err := e.Start(":8080"); err != nil {
 		log.Fatalf("[Lancer Error] Failed to start HTTP Server (%v)", err)

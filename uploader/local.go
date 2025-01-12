@@ -3,6 +3,7 @@ package uploader
 import (
 	"os"
 
+	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
 	"github.com/weekend-dev-labs/lancer/utils"
 )
@@ -72,4 +73,8 @@ func (l *LocalUploader) CompletePartUpload(sessionInfo *types.SessionInfo, file 
 
 func (l *LocalUploader) CancelUploadSession(sessionInfo *types.SessionInfo) error {
 	return os.RemoveAll(sessionInfo.TempPath)
+}
+
+func (l *LocalUploader) DeleteUpload(uploadInfo *db.DeleteDocumentsByIdsRow) error {
+	return l.fio.DeleteFile(uploadInfo.FilePath)
 }

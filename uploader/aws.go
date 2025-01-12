@@ -9,12 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/weekend-dev-labs/lancer/config"
+	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
+	"github.com/weekend-dev-labs/lancer/utils"
 )
 
 type AwsUploader struct {
@@ -57,6 +58,12 @@ type UploadFullFileParam struct {
 	File   io.Reader
 }
 
+type Metadata struct {
+	Key    string `json:"key"`
+	Etag   string `json:"etag"`
+	Bucket string `json:"bucket"`
+}
+
 func NewAwsUploader(cfg *config.LancerConfig) *AwsUploader {
 	if cfg.Store.AWS.Store {
 		config, err := awsConfig.LoadDefaultConfig(
@@ -81,154 +88,6 @@ func NewAwsUploader(cfg *config.LancerConfig) *AwsUploader {
 
 	return nil
 }
-
-func (au *AwsUploader) CreateMultipart(bucket string, sessionInfo *types.SessionInfo) error {
-	fileKey := fmt.Sprintf("%d_%s", time.Now().Unix(), sessionInfo.FileName)
-	uploadOutput, err := au.s3Client.CreateMultipartUpload(context.TODO(), &s3.CreateMultipartUploadInput{
-		Bucket: &bucket,
-		Key:    &fileKey,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(uploadOutput.UploadId)
-	fmt.Println(sessionInfo.ID)
-
-	au.mu.Lock()
-	au.sessions[sessionInfo.ID] = &MultipartSessionInfo{
-		UploadInfo: uploadOutput,
-		Parts:      s3Types.CompletedMultipartUpload{},
-	}
-	au.mu.Unlock()
-
-	return nil
-}
-
-func (au *AwsUploader) UploadPart(params UploadPartParam) (*s3.UploadPartOutput, error) {
-	input := &s3.UploadPartInput{
-		Bucket:     aws.String(params.Bucket),
-		Key:        aws.String(params.Key),
-		PartNumber: &params.Part,
-		UploadId:   &params.UploadID,
-		Body:       params.Body,
-	}
-
-	resp, err := au.s3Client.UploadPart(context.TODO(), input)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
-func (au *AwsUploader) CompleteMultipartUpload(params CompleteMultipartParam) error {
-	input := &s3.CompleteMultipartUploadInput{
-		Bucket:   &params.Bucket,
-		Key:      &params.Key,
-		UploadId: &params.UploadID,
-		MultipartUpload: &s3Types.CompletedMultipartUpload{
-			Parts: params.CompletedPartsInfo,
-		},
-	}
-
-	_, err := au.s3Client.CompleteMultipartUpload(context.TODO(), input)
-
-	return err
-}
-
-func (au *AwsUploader) AbortMultipartUpload(id string) error {
-
-	au.mu.Lock()
-	session, isExists := au.sessions[id]
-	au.mu.Unlock()
-
-	if !isExists {
-		return fmt.Errorf("No aws s3 session found")
-	}
-
-	input := &s3.AbortMultipartUploadInput{
-		Bucket:   session.UploadInfo.Bucket,
-		Key:      session.UploadInfo.Key,
-		UploadId: session.UploadInfo.UploadId,
-	}
-
-	_, err := au.s3Client.AbortMultipartUpload(context.TODO(), input)
-
-	if err == nil {
-		au.mu.Lock()
-		delete(au.sessions, id)
-		au.mu.Unlock()
-	}
-
-	return err
-}
-
-func (au *AwsUploader) HandleMultipartUploads(id string, part int32, sessionInfo *types.SessionInfo, file *bytes.Reader) error {
-	au.mu.Lock()
-	info, isExists := au.sessions[sessionInfo.ID]
-	au.mu.Unlock()
-
-	if !isExists {
-		return fmt.Errorf("no upload session found")
-	}
-
-	fmt.Println(sessionInfo.CurrentChunk)
-
-	if sessionInfo.CurrentChunk+1 == int64(sessionInfo.MaxChunk) {
-		err := au.CompleteMultipartUpload(CompleteMultipartParam{
-			Bucket:             *info.UploadInfo.Bucket,
-			Key:                *info.UploadInfo.Key,
-			UploadID:           *info.UploadInfo.UploadId,
-			CompletedPartsInfo: info.Parts.Parts,
-		})
-
-		if err != nil {
-			return err
-		}
-
-		fmt.Println("File uploaded successfully to s3")
-
-		return nil
-	}
-
-	fmt.Printf("Upload ID: %s\n", *info.UploadInfo.UploadId)
-
-	upload, err := au.UploadPart(UploadPartParam{
-		Bucket:   *info.UploadInfo.Bucket,
-		Key:      *info.UploadInfo.Key,
-		Part:     part,
-		Body:     file,
-		UploadID: *info.UploadInfo.UploadId,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	info.Parts.Parts = append(info.Parts.Parts, s3Types.CompletedPart{
-		ETag:       upload.ETag,
-		PartNumber: &part,
-	})
-
-	au.mu.Lock()
-	au.sessions[id] = info
-	au.mu.Unlock()
-
-	return nil
-}
-
-func (au *AwsUploader) UploadFullFile(params *UploadFullFileParam) (*s3.PutObjectOutput, error) {
-	return au.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: &params.Bucket,
-		Key:    &params.Key,
-		Body:   params.File,
-	})
-}
-
-// New Functions from here ----->
 
 func (au *AwsUploader) CreateChunkUploadSession(sessionInfo *types.SessionInfo) error {
 	fileKey := fmt.Sprintf("%d_%s", time.Now().Unix(), sessionInfo.FileName)
@@ -266,12 +125,11 @@ func (au *AwsUploader) Upload(sessionInfo *types.SessionInfo, file []byte) (*Upl
 	return &UploadAck{
 		Provider: types.UploaderAws,
 		ProviderMetadata: map[string]string{
-			"bucket":   au.config.Store.AWS.Bucket,
-			"key":      sessionInfo.FileName,
-			"checksum": *resp.ChecksumSHA256,
-			"etag":     *resp.ETag,
+			"bucket": au.config.Store.AWS.Bucket,
+			"key":    sessionInfo.FileName,
+			"etag":   *resp.ETag,
 		},
-		Checksum: *resp.ChecksumSHA256,
+		Checksum: "",
 		FilePath: "",
 	}, nil
 }
@@ -380,6 +238,28 @@ func (au *AwsUploader) CancelUploadSession(sessionInfo *types.SessionInfo) error
 	au.mu.Lock()
 	delete(au.sessions, sessionInfo.ID)
 	au.mu.Unlock()
+
+	return nil
+}
+
+func (au *AwsUploader) DeleteUpload(uploadInfo *db.DeleteDocumentsByIdsRow) error {
+	var metadata Metadata
+
+	if err := utils.GetJsonStruct(uploadInfo.ProviderMetadata, &metadata); err != nil {
+		return fmt.Errorf("invalid metadata for the provider")
+	}
+
+	fmt.Println(metadata.Bucket)
+	fmt.Println(metadata.Key)
+
+	_, err := au.s3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: &metadata.Bucket,
+		Key:    &metadata.Key,
+	})
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

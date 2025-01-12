@@ -2,6 +2,7 @@ package uploader
 
 import (
 	"github.com/weekend-dev-labs/lancer/config"
+	"github.com/weekend-dev-labs/lancer/db"
 	"github.com/weekend-dev-labs/lancer/types"
 )
 
@@ -14,6 +15,8 @@ type IUploader interface {
 	HandlePartUpload(sessionInfo *types.SessionInfo, file []byte) error
 
 	CancelUploadSession(sessionInfo *types.SessionInfo) error
+
+	DeleteUpload(uploadInfo *db.DeleteDocumentsByIdsRow) error
 }
 
 type Uploader struct {

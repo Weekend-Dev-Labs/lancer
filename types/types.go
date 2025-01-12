@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ContextKeys string
@@ -69,5 +68,3 @@ type UploadQueryInfo struct {
 	Limit int64 `query:"size"`
 	Page  int64 `query:"page"`
 }
-
-type hello pgtype.JSONBCodec
