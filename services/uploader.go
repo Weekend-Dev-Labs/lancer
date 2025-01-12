@@ -109,7 +109,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			return err
 		}
 
-		_, err = s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
+		fileUpload, err := s.db.CreateUploadedFile(context.TODO(), db.CreateUploadedFileParams{
 			FileName: sessionInfo.FileName,
 			FilePath: uploadRes.FilePath,
 			FileSize: sessionInfo.FileSize,
@@ -126,7 +126,7 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 			ProviderMetadata: b,
 		})
 
-		s.webhook.SendEvent(EventFileUpload, file)
+		s.webhook.SendEvent(EventFileUpload, fileUpload)
 
 		return c.JSON(http.StatusAccepted, map[string]string{
 			"message": "file uploaded",
