@@ -31,6 +31,8 @@ const (
 const (
 	AppName       = "lancer"
 	AppConfigFile = "lancer.yaml"
+	AppSecrets    = "secrets"
+	AppHistory    = "history"
 )
 
 type CreateSessionPayload struct {

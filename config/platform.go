@@ -57,6 +57,13 @@ auth:
 		log.Fatalf("[LANCER ERROR] Failed to create default configuration yaml file")
 	}
 
+	if err := os.WriteFile(filepath.Join(dir, "secrets"), []byte(""), 0755); err != nil {
+		fmt.Println("[LANCER ERROR] Failed to create secrets")
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "history"), []byte(""), 0755); err != nil {
+		fmt.Println("[LANCER ERROR] Failed to history secrets")
+	}
 }
 
 func getPlatfromConfigDirectory() string {
@@ -83,4 +90,32 @@ func getPlatfromConfigDirectory() string {
 
 func getPlatformConfigFilePath() string {
 	return filepath.Join(getPlatfromConfigDirectory(), types.AppConfigFile)
+}
+
+func getContent(name string) string {
+
+	filePath := filepath.Join(getPlatfromConfigDirectory(), name)
+
+	content, err := os.ReadFile(filePath)
+
+	if err != nil {
+		fmt.Printf("[LANCER WARNING] No %s file found\n", name)
+		return ""
+	}
+
+	contentString := string(content)
+
+	return contentString
+}
+
+func writeContent(content string, name string) {
+	os.WriteFile(filepath.Join(getPlatfromConfigDirectory(), name), []byte(content), 0755)
+}
+
+func GetHistoryContent() string {
+	return getContent(types.AppHistory)
+}
+
+func GetSecretContent() string {
+	return getContent(types.AppSecrets)
 }

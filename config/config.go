@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/weekend-dev-labs/lancer/types"
+	"github.com/weekend-dev-labs/lancer/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,7 +45,8 @@ type LancerConfig struct {
 
 	MetricsID uuid.UUID
 
-	IsAwsProvided bool
+	IsAwsProvided        bool
+	WebhookSigningSecret string
 }
 
 func ParseFlags() *LancerConfig {
@@ -160,4 +163,29 @@ func ParseFlags() *LancerConfig {
 
 func (c *LancerConfig) GetDatabaseConnectionString() string {
 	return "postgresql://" + c.Database.User + ":" + c.Database.Password + "@" + c.Database.Address + "/" + c.Database.Name + "?sslmode=disable"
+}
+
+func (c *LancerConfig) GetSigningSecret() string {
+	currentEndpoints := c.AuthEndpoint + ":" + c.WebhookEndpoint
+
+	content := GetHistoryContent()
+
+	if currentEndpoints != content {
+		secret, err := utils.GenerateSecret(50)
+
+		if err != nil {
+			log.Fatalf("[LANCER ERROR] Failed to generate signing secret")
+		}
+
+		writeContent(secret, types.AppSecrets)
+		writeContent(currentEndpoints, types.AppHistory)
+
+		c.WebhookSigningSecret = secret
+
+		return secret
+	}
+
+	c.WebhookSigningSecret = getContent(types.AppSecrets)
+
+	return c.WebhookSigningSecret
 }

@@ -24,6 +24,8 @@ func main() {
 
 	cfg := config.ParseFlags()
 
+	cfg.GetSigningSecret()
+
 	if cfg.Database.Migrate {
 		db.RunMigration(cfg.GetDatabaseConnectionString())
 		return

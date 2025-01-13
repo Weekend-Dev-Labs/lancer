@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
@@ -41,4 +43,17 @@ func GetTempPath(root string, id string, filename string) string {
 
 func GetJsonStruct(byteArr []byte, val interface{}) error {
 	return json.Unmarshal(byteArr, val)
+}
+
+func GenerateSecret(length int) (string, error) {
+	// Create a byte slice to store the random data
+	secret := make([]byte, length)
+	_, err := rand.Read(secret)
+	if err != nil {
+		return "", err
+	}
+
+	// Convert the byte slice into a base64 encoded string (or use hex if preferred)
+	encodedSecret := base64.URLEncoding.EncodeToString(secret)
+	return encodedSecret, nil
 }
