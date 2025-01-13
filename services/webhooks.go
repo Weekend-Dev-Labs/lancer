@@ -2,7 +2,11 @@ package services
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -10,7 +14,8 @@ import (
 type WebhookEvent string
 
 type Webhook struct {
-	endpoint string
+	endpoint      string
+	signingSecret string
 }
 
 const (
@@ -22,9 +27,10 @@ const (
 	EventFileDelete = WebhookEvent("FILE_DELETE")
 )
 
-func NewWebhookNotifier(endpoint string) *Webhook {
+func NewWebhookNotifier(endpoint string, signingSecret string) *Webhook {
 	return &Webhook{
-		endpoint: endpoint,
+		endpoint:      endpoint,
+		signingSecret: signingSecret,
 	}
 }
 
@@ -47,7 +53,10 @@ func (wh *Webhook) SendEvent(event WebhookEvent, payload interface{}) error {
 			return err
 		}
 
+		timestamp := fmt.Sprintf("%d", time.Now().Unix())
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-timestamp", timestamp)
+		req.Header.Set("x-signature", getSignature(string(jsonData), timestamp, wh.signingSecret))
 
 		client := http.Client{
 			Timeout: 10 * time.Second,
@@ -65,4 +74,13 @@ func (wh *Webhook) SendEvent(event WebhookEvent, payload interface{}) error {
 	}
 
 	return nil
+}
+
+func getSignature(payload, timestamp, secret string) string {
+	message := timestamp + "." + payload
+	mac := hmac.New(sha256.New, []byte(secret))
+
+	mac.Write([]byte(message))
+
+	return hex.EncodeToString(mac.Sum(nil))
 }
