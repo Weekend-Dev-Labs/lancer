@@ -258,7 +258,6 @@ func (s *Services) serviceDeleteUploads(c echo.Context) error {
 	}
 
 	var wg sync.WaitGroup
-	// var deleteErrors []string
 
 	for _, info := range uploadInfo {
 		wg.Add(1)

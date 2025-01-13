@@ -19,20 +19,13 @@ type Services struct {
 	repo        *repo.Repo
 	webhook     *Webhook
 	logger      *logrus.Logger
-	uploader    *ServiceUploader
 	appUploader *uploader.Uploader
-}
-
-type ServiceUploader struct {
-	Aws *uploader.AwsUploader
 }
 
 func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, redisCache *cache.Cache, repo *repo.Repo, logger *logrus.Logger) {
 
 	taskManager := NewTaskManager(repo)
 	webhook := NewWebhookNotifier(cfg.WebhookEndpoint)
-
-	// appUploader := uploader.
 
 	appUploader := uploader.NewUploader(cfg)
 

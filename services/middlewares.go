@@ -1,9 +1,12 @@
 package services
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -15,22 +18,58 @@ type LancerValidator struct {
 	Validator *validator.Validate
 }
 
-func (s *Services) authClientServerToken(c echo.Context) (echo.Context, bool) {
+func (s *Services) authClientServerToken(c echo.Context) (echo.Context, error) {
 	authHeder := c.Request().Header.Get("authorization")
+	payload := new(types.CreateSessionPayload)
+
+	if err := utils.GetValidatedPayload(c, payload); err != nil {
+		return c, fmt.Errorf("invalid session create payload")
+	}
 
 	splitedHeader := strings.Split(authHeder, " ")
 
-	fmt.Println(splitedHeader)
-
 	if len(splitedHeader) != 2 {
-		return c, false
+		return c, fmt.Errorf("missing auth token")
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+
+	if err != nil {
+		return c, fmt.Errorf("invalid session create payload")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, s.cfg.AuthEndpoint, bytes.NewReader(jsonPayload))
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return c, fmt.Errorf("failed to make request to auth server")
+	}
+
+	req.Header.Set("authorization", "Bearer "+splitedHeader[1])
+	req.Header.Set("Content-Type", "application/json")
+
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	res, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println("Request Failed")
+		return c, fmt.Errorf("failed to make request to auth server")
+	}
+
+	if res.StatusCode != 200 {
+		return c, fmt.Errorf("invalid auth token")
 	}
 
 	c.Set(string(types.ContextAuthInfo), &authInfo{
 		ID: "helloo",
 	})
 
-	return c, true
+	c.Set(string(types.ContextSessionPayload), payload)
+
+	return c, nil
 }
 
 func (s *Services) authSessionToken(c echo.Context) (echo.Context, bool) {
@@ -81,11 +120,12 @@ func (s *Services) middlewareAuth(authType []types.AuthKeys, next echo.HandlerFu
 		for _, auth := range authType {
 			switch auth {
 			case types.AuthClientServerToken:
-				handlerC, isTokenCorrect := s.authClientServerToken(c)
+				fmt.Println("Client Server Token")
+				handlerC, err := s.authClientServerToken(c)
 
-				if !isTokenCorrect {
+				if err != nil {
 					return c.JSON(http.StatusForbidden, map[string]string{
-						"err": "invalid auth header or auth header not present",
+						"err": err.Error(),
 					})
 				}
 				isTokenValid = true

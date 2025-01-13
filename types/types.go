@@ -10,9 +10,10 @@ type AuthKeys string
 type UploaderProvider string
 
 const (
-	ContextAuthInfo    = ContextKeys("auth-info")
-	ContextSessionInfo = ContextKeys("session-info")
-	ContextWebToken    = ContextKeys("webtoken-info")
+	ContextAuthInfo       = ContextKeys("auth-info")
+	ContextSessionInfo    = ContextKeys("session-info")
+	ContextWebToken       = ContextKeys("webtoken-info")
+	ContextSessionPayload = ContextKeys("session-payload")
 )
 
 const (

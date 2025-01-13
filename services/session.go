@@ -16,13 +16,8 @@ import (
 )
 
 func (s *Services) serviceCreateSession(c echo.Context) error {
-	payload := new(types.CreateSessionPayload)
-
+	payload := c.Get(string(types.ContextSessionPayload)).(*types.CreateSessionPayload)
 	authInfo := c.Get(string(types.ContextAuthInfo)).(*authInfo)
-
-	if err := utils.GetValidatedPayload(c, payload); err != nil {
-		return err
-	}
 
 	uploadHandler := s.appUploader.GetUploaderByType(payload.Provider)
 
@@ -31,18 +26,6 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 			"error": "invalid provider to create session",
 		})
 	}
-
-	// var isAwsUploader bool
-
-	// switch payload.Provider {
-	// case types.UploaderAws:
-	// 	isAwsUploader = true
-	// 	if !s.cfg.Store.AWS.Store {
-	// 		return c.JSON(http.StatusBadRequest, map[string]string{
-	// 			"error": "aws is not configured to handle uploads",
-	// 		})
-	// 	}
-	// }
 
 	session, err := s.repo.CreateSession(&types.SessionInfo{
 		FileSize:     payload.FileSize,
@@ -53,8 +36,6 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 		CurrentChunk: 0,
 		Provider:     payload.Provider,
 	})
-
-	fmt.Printf(string(session.Provider))
 
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
@@ -79,14 +60,6 @@ func (s *Services) serviceCreateSession(c echo.Context) error {
 	s.tasks.AddTask(session.ID, time.Duration(time.Second*300), func(ctx context.Context) {
 		uploadHandler.CancelUploadSession(session)
 	})
-	// 	if isAwsUploader {
-	// 		s.uploader.Aws.AbortMultipartUpload(session.ID)
-	// 	} else {
-	// 		if err := os.RemoveAll(dirPath); err != nil {
-	// 			fmt.Printf(err.Error())
-	// 		}
-	// 	}
-	// })
 
 	go s.webhook.SendEvent(EventSessionCreate, session)
 
@@ -177,8 +150,6 @@ func (s *Services) serviceGetSessions(c echo.Context) error {
 
 func (s *Services) registerSessionServicer() {
 	group := s.e.Group("/sessions")
-
-	// group.Use(s.middlewareAuthenticate)
 
 	group.GET("", s.middlewareAuth([]types.AuthKeys{types.AuthWebToken}, s.serviceGetSessions))
 
