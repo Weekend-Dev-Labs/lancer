@@ -28,6 +28,11 @@ const (
 	UploaderLocal = UploaderProvider("LOCAL")
 )
 
+const (
+	AppName       = "lancer"
+	AppConfigFile = "lancer.yaml"
+)
+
 type CreateSessionPayload struct {
 	FileSize  int64            `json:"file_size" validate:"required"`
 	ChunkSize int64            `json:"chunk_size" validate:"required"`

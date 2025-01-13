@@ -18,6 +18,8 @@ var logger = logrus.New()
 
 func main() {
 
+	config.InitConfig()
+
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 
 	cfg := config.ParseFlags()

@@ -81,10 +81,21 @@ func ParseFlags() *LancerConfig {
 
 	flag.Parse()
 
-	if filePath != "" {
-		// Load the config file
+	configurationPath := getPlatformConfigFilePath()
 
-		data, err := os.ReadFile(filePath)
+	var configPath string
+
+	if configurationPath != "" {
+		configPath = configurationPath
+	}
+
+	if filePath != "" {
+		configPath = filePath
+	}
+
+	if filePath != "" || configurationPath != "" {
+
+		data, err := os.ReadFile(configPath)
 
 		if err != nil {
 			log.Fatalf("[Lancer Error] Failed to load the file (%v)", err)
