@@ -18,9 +18,6 @@ jobs:
         with:
           go-version: 1.23.3
 
-      - name: Install dependencies
-        run: go mod tidy
-
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
