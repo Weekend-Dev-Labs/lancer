@@ -18,6 +18,9 @@ jobs:
         with:
           go-version: 1.23.3
 
+      - name: Install dependencies
+        run: go mod tidy
+
       - name: Install GoReleaser
         run: curl -sL https://install.goreleaser.com/github-cli.sh | bash
 
