@@ -339,67 +339,6 @@ func (q *Queries) DeleteUserByID(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const filterUploadedFiles = `-- name: FilterUploadedFiles :many
-SELECT 
-    uf.id,
-    uf.file_name,
-    uf.file_path,
-    uf.file_size,
-    uf.file_type,
-    uf.uploaded_by,
-    uf.uploaded_at,
-    uf.is_deleted,
-    uf.checksum,
-    uf.description,
-    uf.provider,
-    uf.provider_metadata
-FROM uploaded_files uf
-WHERE 
-    uf.is_deleted = FALSE
-    AND ($1::BIGINT IS NULL OR uf.file_size >= $1)  -- Minimum file size
-    AND ($2::BIGINT IS NULL OR uf.file_size <= $2)  -- Maximum file size
-    AND ($3::TEXT IS NULL OR uf.file_type = $3)
-`
-
-type FilterUploadedFilesParams struct {
-	Column1 int64
-	Column2 int64
-	Column3 string
-}
-
-func (q *Queries) FilterUploadedFiles(ctx context.Context, arg FilterUploadedFilesParams) ([]UploadedFile, error) {
-	rows, err := q.db.Query(ctx, filterUploadedFiles, arg.Column1, arg.Column2, arg.Column3)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []UploadedFile
-	for rows.Next() {
-		var i UploadedFile
-		if err := rows.Scan(
-			&i.ID,
-			&i.FileName,
-			&i.FilePath,
-			&i.FileSize,
-			&i.FileType,
-			&i.UploadedBy,
-			&i.UploadedAt,
-			&i.IsDeleted,
-			&i.Checksum,
-			&i.Description,
-			&i.Provider,
-			&i.ProviderMetadata,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const findDuplicateFileNames = `-- name: FindDuplicateFileNames :many
 SELECT file_name, COUNT(*) AS duplicate_count
 FROM sessions

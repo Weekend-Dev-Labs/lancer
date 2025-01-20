@@ -74,8 +74,8 @@ type UploadDeletePayload struct {
 }
 
 type UploadQueryInfo struct {
-	Limit int64 `query:"size"`
-	Page  int64 `query:"page"`
+	Limit int32 `query:"size"`
+	Page  int32 `query:"page"`
 }
 
 type DeleteUploadFileList struct {
