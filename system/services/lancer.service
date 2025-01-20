@@ -1,0 +1,16 @@
+[Unit]
+Description=Lancer Application
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/lancer
+WorkingDirectory=/usr/local/bin
+Restart=on-failure
+User=nobody
+Group=nogroup
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=30s
+
+[Install]
+WantedBy=multi-user.target

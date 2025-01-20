@@ -29,4 +29,5 @@ frontend-test/
 temp
 store
 
-dist
+dist# Added by goreleaser init:
+dist/

@@ -74,8 +74,14 @@ type UploadDeletePayload struct {
 }
 
 type UploadQueryInfo struct {
-	Limit int32 `query:"size"`
-	Page  int32 `query:"page"`
+	Limit      int32   `query:"size"`
+	Page       int32   `query:"page"`
+	MinSize    *int64  `query:"min_size"`
+	MaxSize    *int64  `query:"max_size"`
+	Checksum   *string `query:"checksum"`
+	UploadedBy *string `query:"uploaded_by"`
+	Provider   *string `query:"provider"`
+	FileType   *string `query:"file_type"`
 }
 
 type DeleteUploadFileList struct {

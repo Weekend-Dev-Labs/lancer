@@ -233,8 +233,14 @@ func (s *Services) serviceGetUploads(c echo.Context) error {
 	// uploads, err := s.db.FilterUploadedFiles(context.Context(), db.FilterUploadedFilesParams{})
 
 	uploads, err := s.db.GetFilteredUploads(db.FilterUploadParams{
-		Limit:  &queryInfo.Limit,
-		Offset: &queryInfo.Page,
+		Limit:       &queryInfo.Limit,
+		Offset:      &queryInfo.Page,
+		MaxFileSize: queryInfo.MaxSize,
+		MinFileSize: queryInfo.MinSize,
+		FileType:    queryInfo.FileType,
+		UploadedBy:  queryInfo.UploadedBy,
+		Checksum:    queryInfo.Checksum,
+		Provider:    queryInfo.Provider,
 	})
 
 	if err != nil {
