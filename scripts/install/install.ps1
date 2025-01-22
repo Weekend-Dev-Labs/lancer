@@ -64,20 +64,7 @@ try {
     exit 1
 }
 
-# Step 4: Download and Execute lancer.ps1 (Startup Script)
-$StartupScriptUrl = "https://raw.githubusercontent.com/Weekend-Dev-Labs/lancer/refs/heads/main/scripts/startup/lancer.ps1"
-$StartupScriptPath = Join-Path $env:TEMP "lancer.ps1"
+# Add Lancer path to the user's environment PATH
+[System.Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";$InstallDir", [System.EnvironmentVariableTarget]::User)
 
-try {
-    Log "Downloading the startup script from $StartupScriptUrl..."
-    Invoke-WebRequest -Uri $StartupScriptUrl -OutFile $StartupScriptPath -ErrorAction Stop
-
-    Log "Executing startup script..."
-    # Execute the downloaded script
-    & "powershell.exe" -ExecutionPolicy Bypass -File $StartupScriptPath
-
-    Log "Startup script executed successfully."
-} catch {
-    Write-Error "Failed to download or execute the startup script: $_"
-    exit 1
-}
+Write-Host "Lancer path added to environment variables: $LancerPath"
