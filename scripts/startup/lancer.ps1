@@ -1,7 +1,7 @@
 $ServiceName = "Lancer"
 $DisplayName = "Lancer"
 $Description = "Upload Service"
-$ExecutablePath = "C:\Program Files\Lancer\lancer.exe"
+$ExecutablePath = "$env:USERPROFILE\AppData\Local\Lancer\lancer.exe"
 
 # Create the service
 New-Service -Name $ServiceName 
