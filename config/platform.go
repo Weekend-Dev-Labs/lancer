@@ -16,7 +16,6 @@ func InitConfig() {
 	_, err := os.Stat(dir)
 
 	if err == nil {
-		fmt.Println("[LANCER INFO] Configuration found loading from : ", dir)
 		return
 	}
 

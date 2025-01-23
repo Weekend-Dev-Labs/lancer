@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/weekend-dev-labs/lancer/utils"
 	"gopkg.in/yaml.v3"
 )
+
+const Version = "v2.0.4"
 
 type LancerConfig struct {
 	Database struct {
@@ -50,6 +53,7 @@ type LancerConfig struct {
 }
 
 func ParseFlags() *LancerConfig {
+
 	cfg := &LancerConfig{}
 	filePath := ""
 
@@ -158,6 +162,8 @@ func ParseFlags() *LancerConfig {
 		}
 	}
 
+	cfg.HandleStandaloneArgs()
+
 	return cfg
 }
 
@@ -188,4 +194,20 @@ func (c *LancerConfig) GetSigningSecret() string {
 	c.WebhookSigningSecret = getContent(types.AppSecrets)
 
 	return c.WebhookSigningSecret
+}
+
+func (c *LancerConfig) HandleStandaloneArgs() {
+	if len(os.Args) == 2 {
+		arg := os.Args[1]
+
+		switch arg {
+		case "migrate":
+			c.Database.Migrate = true
+			return
+
+		case "version":
+			fmt.Println(Version)
+			os.Exit(1)
+		}
+	}
 }
