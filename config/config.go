@@ -15,7 +15,9 @@ import (
 const Version = "v2.0.4"
 
 type LancerConfig struct {
-	Database struct {
+	Port        string   `yaml:"port"`
+	AllowOrigin []string `yaml:"allow-origin"`
+	Database    struct {
 		Address  string `yaml:"address"`
 		User     string `yaml:"user"`
 		Password string `yaml:"password"`
@@ -58,6 +60,9 @@ func ParseFlags() *LancerConfig {
 	filePath := ""
 
 	flag.StringVar(&filePath, "config", "", "Sets the Lancer Configuration")
+
+	// Server Config
+	flag.StringVar(&cfg.Port, "port", "8080", "Sets the port in which lancer will run (default 8080)")
 
 	// Database CLI Args
 	flag.BoolVar(&cfg.Database.Migrate, "database-migrate", false, "Sets the option for migration")

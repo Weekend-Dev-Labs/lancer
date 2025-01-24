@@ -27,6 +27,9 @@ func InitConfig() {
 	}
 
 	defaultYaml := `
+port: "8080"
+allow-origin:
+  - ""
 database:
   migrate: false
   address: "localhost:5432"

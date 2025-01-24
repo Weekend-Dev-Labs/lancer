@@ -24,25 +24,27 @@ func StartServer(cfg *config.LancerConfig, db *db.Queries, cache *cache.Cache, l
 	}
 
 	e.Use(middleware.Logger())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: cfg.AllowOrigin,
+	}))
 
 	newRepo := repo.NewRepo(db, cache, cfg)
 
 	services.RegisterServices(e.Group("/api"), db, cfg, cache, newRepo, logger)
 
-	startLog := `                                                                              
+	startLog := fmt.Sprintf(`                                                                              
    __                        
   / /  ___ ____  _______ ____
  / /__/ _ \/ _ \/ __/ -_) __/
-/____/\_,_/_//_/\__/\__/_/    v.1.0.1
+/____/\_,_/_//_/\__/\__/_/    %s
 
 Thanks for using Lancer !!
                              
-	`
+	`, config.Version)
 
 	fmt.Println(startLog)
 
-	if err := e.Start(":8080"); err != nil {
+	if err := e.Start(fmt.Sprintf(":%s", cfg.Port)); err != nil {
 		log.Fatalf("[Lancer Error] Failed to start HTTP Server (%v)", err)
 	}
 }

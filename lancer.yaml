@@ -1,3 +1,6 @@
+port: "8080"
+allow-origin:
+  - "https://localhost:3000"
 database:
   migrate: false
   address: "localhost:5432"
