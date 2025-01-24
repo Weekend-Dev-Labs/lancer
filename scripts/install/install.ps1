@@ -1,8 +1,8 @@
 # Configuration Variables
 $GitHubRepo = "weekend-dev-labs/lancer"
-$ReleaseTag = "v2.0.5"
+$ReleaseTag = "v2.0.9"
 $InstallDir = "$env:USERPROFILE\AppData\Local\Lancer"
-$ReleaseVersion = "2.0.5"
+$ReleaseVersion = "2.0.9"
 
 # Detect System Architecture
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") { "amd64" } elseif ($env:PROCESSOR_ARCHITECTURE -eq "x86") { "386" } elseif ($env:PROCESSOR_ARCHITECTURE -like "*ARM64*") { "arm64" } else { Write-Error "Unsupported architecture"; exit 1 }
