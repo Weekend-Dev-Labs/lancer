@@ -42,9 +42,15 @@ includes:
   - from_file:
       path: Weekend-Dev-Labs/lancer/refs/heads/main/scripts/startup/lancer.service
   
-  -from_file:
+  - from_file:
       path: Weekend-Dev-Labs/lancer/refs/heads/main/scripts/startup/lancer.ps1
-      
+
+  - from_file:
+      path: Weekend-Dev-Labs/lancer/refs/heads/main/scripts/install/install.ps1
+
+  - from_file:
+      path: Weekend-Dev-Labs/lancer/refs/heads/main/scripts/install/install.sh
+
 changelog:
   sort: asc
   filters:
