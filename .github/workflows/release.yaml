@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v*"  # Trigger on any tag that starts with 'v'
 
 permissions:
   contents: write
@@ -20,6 +20,31 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: 1.23.3
+
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+          echo "Extracted tag: $TAG_NAME"
+
+      - name: Update install.sh
+        run: |
+          sed -i "s/RELEASE_TAG=\"v[0-9]*\.[0-9]*\.[0-9]*\"/RELEASE_TAG=\"$TAG_NAME\"/" install.sh
+          sed -i "s/RELEASE_VERSION=\"[0-9]*\.[0-9]*\.[0-9]*\"/RELEASE_VERSION=\"${TAG_NAME#v}\"/" install.sh
+
+      - name: Update install.ps1
+        run: |
+          sed -i "s/\$ReleaseTag = \"v[0-9]*\.[0-9]*\.[0-9]*\"/\$ReleaseTag = \"$TAG_NAME\"/" install.ps1
+          sed -i "s/\$ReleaseVersion = \"[0-9]*\.[0-9]*\.[0-9]*\"/\$ReleaseVersion = \"${TAG_NAME#v}\"/" install.ps1
+
+      - name: Commit updated files
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add install.sh install.ps1
+          git commit -m "Update scripts for release $TAG_NAME"
+          git push
 
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v4
