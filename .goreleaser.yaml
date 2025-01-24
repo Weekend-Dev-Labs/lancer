@@ -38,6 +38,13 @@ archives:
       - goos: windows
         format: zip
 
+includes:
+  - from_file:
+      path: Weekend-Dev-Labs/lancer/refs/heads/main/scripts/startup/lancer.service
+  
+  -from_file:
+      path: Weekend-Dev-Labs/lancer/refs/heads/main/scripts/startup/lancer.ps1
+      
 changelog:
   sort: asc
   filters:
