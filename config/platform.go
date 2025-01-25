@@ -38,6 +38,7 @@ database:
   name: "lancer-main"
 use-redis: false
 redis: ""
+server-auth: ""
 webhook-endpoint: ""
 auth-endpoint: ""
 store:

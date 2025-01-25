@@ -39,6 +39,7 @@ type LancerConfig struct {
 			Config string `yaml:"config"`
 		}
 	}
+	ServerAuth   bool   `yaml:"server-auth"`
 	AuthEndpoint string `yaml:"auth-endpoint"`
 
 	AdminTokenSigningSecret string `yaml:"admin-token-secret"`
@@ -79,6 +80,8 @@ func ParseFlags() *LancerConfig {
 	flag.StringVar(&cfg.Store.Local.Path, "store-local-path", "store", "Sets the path to store the media files locally.")
 	flag.StringVar(&cfg.Store.Local.Temp, "store-local-temp", "temp", "Sets the path to store the media files temporariliy")
 	flag.StringVar(&cfg.AuthEndpoint, "auth-endpoint", "", "Sets the path for authentication")
+
+	flag.BoolVar(&cfg.ServerAuth, "server-auth", false, "Whether to authenticate or not with the server (Default: false)")
 
 	flag.StringVar(&cfg.WebhookEndpoint, "webhook-endpoint", "", "Sets the path for webhook endpoint.")
 	flag.StringVar(&cfg.AdminTokenSigningSecret, "admin-token-secret", "admin-token", "Sets the token signing secret for the admin token")

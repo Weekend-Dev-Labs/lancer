@@ -19,52 +19,66 @@ type LancerValidator struct {
 }
 
 func (s *Services) authClientServerToken(c echo.Context) (echo.Context, error) {
-	authHeder := c.Request().Header.Get("authorization")
+
 	payload := new(types.CreateSessionPayload)
 
 	if err := utils.GetValidatedPayload(c, payload); err != nil {
 		return c, fmt.Errorf("invalid session create payload")
 	}
 
-	splitedHeader := strings.Split(authHeder, " ")
+	if s.cfg.ServerAuth {
+		authHeder := c.Request().Header.Get("authorization")
 
-	if len(splitedHeader) != 2 {
-		return c, fmt.Errorf("missing auth token")
+		splitedHeader := strings.Split(authHeder, " ")
+
+		if len(splitedHeader) != 2 {
+			return c, fmt.Errorf("missing auth token")
+		}
+
+		jsonPayload, err := json.Marshal(payload)
+
+		if err != nil {
+			return c, fmt.Errorf("invalid session create payload")
+		}
+
+		req, err := http.NewRequest(http.MethodPost, s.cfg.AuthEndpoint, bytes.NewReader(jsonPayload))
+
+		if err != nil {
+			fmt.Println(err.Error())
+			return c, fmt.Errorf("failed to make request to auth server")
+		}
+
+		req.Header.Set("authorization", "Bearer "+splitedHeader[1])
+		req.Header.Set("Content-Type", "application/json")
+
+		client := http.Client{
+			Timeout: 10 * time.Second,
+		}
+
+		res, err := client.Do(req)
+
+		if err != nil {
+			fmt.Println("Request Failed")
+			return c, fmt.Errorf("failed to make request to auth server")
+		}
+
+		if res.StatusCode != 200 {
+			return c, fmt.Errorf("invalid auth token")
+		}
+
+		c.Set(string(types.ContextAuthInfo), &authInfo{
+			ID: "helloo",
+		})
+
+		c.Set(string(types.ContextSessionPayload), payload)
+
+		return c, nil
 	}
 
-	jsonPayload, err := json.Marshal(payload)
-
-	if err != nil {
-		return c, fmt.Errorf("invalid session create payload")
-	}
-
-	req, err := http.NewRequest(http.MethodPost, s.cfg.AuthEndpoint, bytes.NewReader(jsonPayload))
-
-	if err != nil {
-		fmt.Println(err.Error())
-		return c, fmt.Errorf("failed to make request to auth server")
-	}
-
-	req.Header.Set("authorization", "Bearer "+splitedHeader[1])
-	req.Header.Set("Content-Type", "application/json")
-
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	res, err := client.Do(req)
-
-	if err != nil {
-		fmt.Println("Request Failed")
-		return c, fmt.Errorf("failed to make request to auth server")
-	}
-
-	if res.StatusCode != 200 {
-		return c, fmt.Errorf("invalid auth token")
-	}
+	fmt.Println("Without Authentication")
 
 	c.Set(string(types.ContextAuthInfo), &authInfo{
-		ID: "helloo",
+		ID: "lancer",
 	})
 
 	c.Set(string(types.ContextSessionPayload), payload)
