@@ -19,6 +19,8 @@ func StartServer(cfg *config.LancerConfig, db *db.Queries, cache *cache.Cache, l
 	e := echo.New()
 	e.HideBanner = true
 
+	e.Static("/media", cfg.Store.Local.Path)
+
 	e.Validator = &services.LancerValidator{
 		Validator: validator.New(),
 	}

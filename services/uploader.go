@@ -224,14 +224,6 @@ func (s *Services) serviceGetUploads(c echo.Context) error {
 		return err
 	}
 
-	// uploads, err := s.db.(context.Background(), db.PaginateUploadedFilesParams{
-	// 	Limit: int32(queryInfo.Limit), Offset: int32(queryInfo.Page),
-	// })
-
-	// pagination, err :=
-
-	// uploads, err := s.db.FilterUploadedFiles(context.Context(), db.FilterUploadedFilesParams{})
-
 	uploads, err := s.db.GetFilteredUploads(db.FilterUploadParams{
 		Limit:       &queryInfo.Limit,
 		Offset:      &queryInfo.Page,

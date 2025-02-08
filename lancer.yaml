@@ -9,9 +9,9 @@ database:
   name: "lancer-main"
 use-redis: false
 redis: ""
-server-auth: false
-webhook-endpoint: "http://localhost:3000/webhook"
-auth-endpoint: "http://localhost:3000/webhook/auth"
+server-auth: true
+webhook-endpoint: "http://localhost:3000/api/webhook"
+auth-endpoint: "http://localhost:3000/api/auth"
 store:
   local:
     path: "store"
