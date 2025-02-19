@@ -128,8 +128,12 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 
 		s.webhook.SendEvent(EventFileUpload, fileUpload)
 
-		return c.JSON(http.StatusAccepted, map[string]string{
-			"message": "file uploaded",
+		return c.JSON(http.StatusAccepted, map[string]interface{}{
+			"message":           "file uploaded",
+			"remainingChunk":    sessionInfo.MaxChunk - int64(chunkCount),
+			"isUploadCompleted": true,
+			"uploadId":          fileUpload.ID,
+			"file":              fileUpload,
 		})
 	}
 
@@ -207,8 +211,11 @@ func (s *Services) serviceHandlerChunkUploader(c echo.Context) error {
 
 	s.tasks.ExtendDuration(session.SessionID, time.Duration(time.Minute*2))
 
-	return c.JSON(http.StatusOK, map[string]string{
-		"serverChecksum": serverChecksum,
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"serverChecksum":    serverChecksum,
+		"chunk":             chunkCount,
+		"remainingChunk":    sessionInfo.MaxChunk - int64(chunkCount),
+		"isUploadCompleted": false,
 	})
 }
 
