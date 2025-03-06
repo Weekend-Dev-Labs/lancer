@@ -111,13 +111,19 @@ func (s *Services) authSessionToken(c echo.Context) (echo.Context, bool) {
 }
 
 func (s *Services) authWebToken(c echo.Context) (echo.Context, bool) {
-	adminHeader := c.Request().Header.Get("x-web-token")
+	adminHeader := c.Request().Header.Get("Authorization")
 
 	if adminHeader == "" {
 		return c, false
 	}
 
-	adminInfo, err := utils.GetAdminInfo(adminHeader, s.cfg.AdminTokenSigningSecret)
+	splittedAdminHeader := strings.Split(adminHeader, " ")
+
+	if len(splittedAdminHeader) < 2 {
+		return c, false
+	}
+
+	adminInfo, err := utils.GetAdminInfo(splittedAdminHeader[1], s.cfg.AdminTokenSigningSecret)
 
 	if err != nil {
 		return c, false

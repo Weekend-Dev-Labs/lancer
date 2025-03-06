@@ -33,10 +33,11 @@ type LancerConfig struct {
 			Temp string `yaml:"temp-path"`
 		}
 		AWS struct {
-			Store  bool   `yaml:"store"`
-			Bucket string `yaml:"bucket"`
-			Region string `yaml:"region"`
-			Config string `yaml:"config"`
+			Store        bool   `yaml:"store"`
+			Bucket       string `yaml:"bucket"`
+			Region       string `yaml:"region"`
+			ClientID     string `yaml:"clientId"`
+			ClientSecret string `yaml:"clientSecret"`
 		}
 	}
 	ServerAuth   bool   `yaml:"server-auth"`
@@ -92,7 +93,8 @@ func ParseFlags() *LancerConfig {
 	flag.BoolVar(&cfg.Store.AWS.Store, "aws-store", false, "Whether to store media files in AWS S3.")
 	flag.StringVar(&cfg.Store.AWS.Bucket, "aws-bucket", "", "S3 Bucket name to store file in.")
 	flag.StringVar(&cfg.Store.AWS.Region, "aws-region", "", "AWS Region to store file.")
-	flag.StringVar(&cfg.Store.AWS.Config, "aws-config", "", "File path for AWS configuration files.")
+	flag.StringVar(&cfg.Store.AWS.ClientID, "aws-client-id", "", "AWS Client ID.")
+	flag.StringVar(&cfg.Store.AWS.ClientSecret, "aws-client-secret", "", "AWS Client secret.")
 
 	flag.Parse()
 

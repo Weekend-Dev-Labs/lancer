@@ -10,6 +10,7 @@ import (
 	"time"
 
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/weekend-dev-labs/lancer/config"
@@ -68,8 +69,8 @@ func NewAwsUploader(cfg *config.LancerConfig) *AwsUploader {
 	if cfg.Store.AWS.Store {
 		config, err := awsConfig.LoadDefaultConfig(
 			context.TODO(),
-			awsConfig.WithSharedConfigFiles([]string{cfg.Store.AWS.Config}),
 			awsConfig.WithRegion(cfg.Store.AWS.Region),
+			awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.Store.AWS.ClientID, cfg.Store.AWS.ClientSecret, "")),
 		)
 
 		if err != nil {

@@ -49,7 +49,8 @@ store:
     store: false
     bucket: ""
     region: ""
-    config: ""
+    clientId: ""
+    clientSecret: ""
 admin-token-secret: ""
 auth:
   email: "lancer@email.com"
