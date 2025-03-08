@@ -46,4 +46,5 @@ func RegisterServices(e *echo.Group, db *db.Queries, cfg *config.LancerConfig, r
 	services.registerUploaderService()
 	services.registerAdminService()
 	services.registerMetricsService()
+	services.registerSettingsService()
 }

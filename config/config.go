@@ -166,10 +166,6 @@ func ParseFlags() *LancerConfig {
 		if cfg.Store.AWS.Region == "" {
 			log.Fatalf("[Lancer Error] AWS Region  can't be empty, If using a config file see this reference : (https://lancer.dev/cfg-file) (use -aws-region=<region>)")
 		}
-
-		if cfg.Store.AWS.Config == "" {
-			log.Fatalf("[Lancer Error] AWS Config file path can't be empty. If using a config file see this reference : (http://lancer.dev/cfg-file) (use -aws-config=<config-file-path>)")
-		}
 	}
 
 	cfg.HandleStandaloneArgs()
