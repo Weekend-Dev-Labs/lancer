@@ -19,4 +19,4 @@ COPY --from=builder /app/lancer .
 
 EXPOSE 8080
 
-ENTRYPOINT ["./lancer", "--config", "/root/config.yaml"]
+# No ENTRYPOINT or CMD here (let docker-compose handle it)

@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"mime"
 	"net/http"
+	"path/filepath"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -56,4 +58,13 @@ func GenerateSecret(length int) (string, error) {
 	// Convert the byte slice into a base64 encoded string (or use hex if preferred)
 	encodedSecret := base64.URLEncoding.EncodeToString(secret)
 	return encodedSecret, nil
+}
+
+func GetMimetypeByPath(path string) string {
+	ext := filepath.Ext(path)
+	mimeType := mime.TypeByExtension(ext)
+	if mimeType == "" {
+		return "text/plain" // Default to plain text if the MIME type is unknown
+	}
+	return mimeType
 }

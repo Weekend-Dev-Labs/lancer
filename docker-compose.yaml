@@ -1,0 +1,48 @@
+version: '3'
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    environment:
+      - POSTGRES_DB=my_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "user", "-d", "my_db"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+  
+  app:
+    container_name: app
+    build: .
+    volumes:
+      - ./uploads:/uploads
+      - ./config.yaml:/root/config.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    entrypoint:
+      - sh
+      - -c
+      - >
+        ./lancer --config=/root/config.yaml --database-migrate=true &&
+        exec ./lancer --config=/root/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  uploads:

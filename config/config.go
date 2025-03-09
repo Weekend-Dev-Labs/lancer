@@ -22,7 +22,7 @@ type LancerConfig struct {
 		User     string `yaml:"user"`
 		Password string `yaml:"password"`
 		Name     string `yaml:"name"`
-		Migrate  bool   `yaml:"migrate"`
+		Migrate  bool
 	}
 	UseRedis        bool   `yaml:"use-redis"`
 	Redis           string `yaml:"redis"`
