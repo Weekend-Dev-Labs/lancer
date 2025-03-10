@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { apiMetrics } from "../api/metrics";
+import { useNavigate } from "react-router-dom";
 
 const formatFileSize = (size: number) => {
   if (size === null || size === 0) return "0 B";
@@ -31,9 +32,14 @@ const Dashboard = () => {
     queryFn: apiMetrics,
   });
 
+  const navigate = useNavigate();
+
   if (isLoading) return <p className="text-center text-gray-500">Loading...</p>;
-  if (error)
+  if (error) {
+    localStorage.clear();
+    navigate("/login")
     return <p className="text-center text-red-500">Error fetching metrics</p>;
+  }
 
   const metrics = data?.data?.metrics;
 

@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { apiSession } from "../api/session";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
+import { useNavigate } from "react-router-dom";
 
 const Session = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ["sessions"],
     queryFn: apiSession,
   });
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -21,6 +23,8 @@ const Session = () => {
   }
 
   if (error) {
+    localStorage.clear();
+    navigate("/login")
     return <p className="text-red-500 text-center">Failed to load sessions.</p>;
   }
 

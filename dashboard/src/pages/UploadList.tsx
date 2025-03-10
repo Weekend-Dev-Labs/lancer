@@ -11,6 +11,7 @@ import {
 } from "../components/ui/table";
 import { toast } from "react-hot-toast";
 import { apiDeleteUpload, apiUpload } from "../api/upload";
+import { useNavigate } from "react-router-dom";
 
 const UploadList = () => {
   const queryClient = useQueryClient();
@@ -37,9 +38,14 @@ const UploadList = () => {
     },
   });
 
+  const navigate = useNavigate();
+
   if (isLoading) return <p className="text-center text-gray-500">Loading...</p>;
-  if (error)
+  if (error) {
+    localStorage.clear();
+    navigate("/login")
     return <p className="text-center text-red-500">Error fetching uploads</p>;
+  }
 
   const uploads = data?.data?.uploads?.Files || [];
 

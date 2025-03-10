@@ -4,10 +4,24 @@ import {
   SidebarTrigger,
 } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/app-sidebar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Separator } from "@radix-ui/react-separator";
+import { useEffect, useState } from "react";
 
 const Layout = () => {
+
+  const [canSee, setCanSee] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setCanSee(true);
+    } else {
+      navigate("/login");
+    }
+  }, [])
+
   return (
     <SidebarProvider>
       <AppSidebar />

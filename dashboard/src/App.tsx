@@ -5,6 +5,7 @@ import { Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import UploadList from "./pages/UploadList";
 import Session from "./pages/Session";
+import Settings from "./pages/Settings";
 
 const App = () => {
   return (
@@ -15,6 +16,7 @@ const App = () => {
           <Route index element={<Dashboard />} />
           <Route path="/upload" element={<UploadList />} />
           <Route path="/session" element={<Session />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </QueryProvider>

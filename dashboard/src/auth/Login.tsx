@@ -1,18 +1,36 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiLogin } from "../api/auth";
 import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
+
+import lancer from "../assets/lancer.svg"
+import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+
+import * as yup from "yup";
+import { yupResolver } from "@hookform/resolvers/yup"
+import { useForm } from "react-hook-form";
+
+const schema = yup.object({
+  email: yup.string().email("Must be a valid email").required("Required"),
+  password: yup.string().required("Required")
+})
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  const { formState: { errors }, handleSubmit, register } = useForm({
+    resolver: yupResolver(schema)
+  })
+
   const navigate = useNavigate();
   const mutation = useMutation({
     mutationFn: apiLogin,
     onSuccess: (data) => {
       localStorage.setItem("token", data.data.token);
-      navigate("/dashboard");
+      navigate("/");
       alert("Login successful");
     },
     onError: (error) => {
@@ -20,47 +38,55 @@ const Login = () => {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    mutation.mutate({ email, password });
-  };
+  useEffect(() => {
+    console.log(errors)
+  }, [errors])
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="bg-white p-6 rounded-lg shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-4 text-center">Admin Login</h2>
-        {error && <p className="text-red-500 text-center">{error}</p>}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? "Logging in..." : "Login"}
-          </button>
-        </form>
-      </div>
+      <Card className=" max-w-[550px] w-full">
+        <CardHeader>
+          <img src={lancer} className=" w-[65px] aspect-square" />
+          <h2 className=" text-lg font-semibold">Welcome to Lancer</h2>
+          <p>Login to admin dashboard to see your uploaded content</p>
+        </CardHeader>
+        <CardContent>
+          <form className=" space-y-5" onSubmit={handleSubmit((data) => {
+            setError("");
+            mutation.mutate(data);
+          })}>
+            <div>
+              <Label className=" block space-y-1">
+                <span className=" block">Email</span>
+                <Input placeholder="email@email.com"  {...register("email")} />
+                {
+                  errors["email"]?.message && <span className=" text-sm block text-red-500">{errors["email"]?.message}</span>
+                }
+              </Label>
+            </div>
+            <div>
+              <Label className=" block space-y-1">
+                <span className=" block">Password </span>
+                <Input type="password" {...register("password")} />
+                {
+                  errors["password"]?.message && <span className=" text-sm block text-red-500">{errors["password"]?.message}</span>
+                }
+              </Label>
+            </div>
+
+            {
+              error &&
+              <div>
+                <span className=" text-sm block text-red-500">{error}</span>
+              </div>
+            }
+
+            <div className=" flex items-center justify-center">
+              <Button>Login</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

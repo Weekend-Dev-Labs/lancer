@@ -5,6 +5,7 @@ import {
   Command,
   FolderUp,
   Frame,
+  HardDriveDownload,
   LayoutDashboard,
   LifeBuoy,
   Map,
@@ -39,6 +40,12 @@ const data = {
       title: "Dashboard",
       url: "/",
       icon: LayoutDashboard,
+      isActive: true,
+    },
+    {
+      title: "Sessions",
+      url: "/session",
+      icon: HardDriveDownload,
       isActive: true,
     },
     {
