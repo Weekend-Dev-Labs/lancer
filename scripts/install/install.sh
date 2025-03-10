@@ -2,9 +2,9 @@
 
 # Configurable variables
 GITHUB_REPO="weekend-dev-labs/lancer"  # Replace with the GitHub repo (e.g., user/project)
-RELEASE_TAG="v3.0.5"            # Replace with the release tag (e.g., v2.0.4)
+RELEASE_TAG="v4.0.0"            # Replace with the release tag (e.g., v2.0.4)
 INSTALL_DIR="/usr/local/bin"    # Installation directory
-RELEASE_VERSION="3.0.5"
+RELEASE_VERSION="4.0.0"
 
 # Detect system architecture and OS
 OS="$(uname | tr '[:upper:]' '[:lower:]')"
