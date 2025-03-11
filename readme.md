@@ -17,7 +17,7 @@ You can install lancer on your machine checkout our installation guides :
 
 ## Documentation
 
-For more information and detailed documentation, please check out the [official Lancer docs](#).
+For more information and detailed documentation, please check out the [official Lancer docs](https://weekend-dev-labs.github.io/lancer-docs/docs/category/installation).
 
 ## Contributing
 

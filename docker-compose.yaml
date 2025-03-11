@@ -22,6 +22,7 @@ services:
   
   app:
     container_name: app
+    image: weekenddevlabs/lancer:latest
     build: .
     volumes:
       - ./uploads:/uploads
